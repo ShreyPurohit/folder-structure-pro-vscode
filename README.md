@@ -59,4 +59,4 @@ Modify in **Settings** (`Ctrl+,`) under `folderStructure`.
 MIT License.
 
 ## Contact:
-For questions, open an issue on the [GitHub repository](https://github.com/your-repo).
+For questions, open an issue on the [GitHub repository](https://github.com/ShreyPurohit/copy-folder-structure-vscode/issues).
