@@ -1,4 +1,4 @@
-# Copy Folder Structure - VS Code Extension
+![Copy Folder Structure](assets/banner.webp)
 
 ## Features:
 - **Copy Folder Structure** to clipboard.

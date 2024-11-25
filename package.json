@@ -2,11 +2,12 @@
   "name": "copy-folder-structure",
   "displayName": "Copy Folder Structure",
   "description": "Easily copy the folder structure of any directory in plain text or JSON format. Includes support for .gitignore and excludes hidden files!",
-  "publisher": "Shrey Purohit",
-  "version": "0.0.1",
+  "publisher": "iamshreydxv",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.54.0"
   },
+  "icon": "assets/banner.webp",
   "categories": [
     "Other"
   ],
