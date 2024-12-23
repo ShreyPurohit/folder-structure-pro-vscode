@@ -1,30 +1,68 @@
-![Copy Folder Structure](assets/banner.webp)
+<img src="./assets/banner.webp" alt="Folder Structure Pro" style="width: 100%; height: 250px;">
+
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Copy Folder Structure](#copy-folder-structure)
+  - [Create Folder Structure](#create-folder-structure)
+- [Settings](#settings)
+- [Preview](#preview)
+  - [Context](#context)
+  - [Copy Folder Structure](#copy-folder-structure-preview)
+  - [Create Folder Structure](#create-folder-structure-preview)
+- [How It Works](#how-it-works)
+  - [Copy Folder Structure](#copy-folder-structure-how-it-works)
+  - [Create Folder Structure](#create-folder-structure-how-it-works)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
 
 ## Features:
-- **Copy Folder Structure** to clipboard.
-- Supports two **output formats**: 
-  - **JSON Format** (default)
-  - **Plain Text Format** (tree-like structure with `|--` for hierarchy).
-- Right-click context menu in **Explorer** for easy access.
-- Automatically **ignores files and folders** specified in `.gitignore` (e.g., `node_modules`).
+- **Copy Folder Structure** to clipboard:
+  - Supports two **output formats**: 
+    - **JSON Format** (default)
+    - **Plain Text Format** (tree-like structure with `|--` for hierarchy)
+  - **Right-click** context menu in **Explorer** for quick access
+  - Automatically **ignores files and folders** specified in `.gitignore` (e.g., `node_modules`)
+
+- **Create Folder Structure**:
+  - Create a folder structure from user-provided input in two formats:
+    - **JSON Format**: Parses JSON input and generates directories/files.
+    - **Plain Text Format**: Parses a tree-like structure to create folders and files.
+  - Includes **input validation** to ensure proper formatting.
 
 ## Installation:
 1. Open **VS Code**.
 2. Go to the **Extensions** tab.
-3. Search for **Copy Folder Structure** and click **Install**.
+3. Search for **Folder Structure Pro** and click **Install**.
 
 ## Usage:
-- **Right-click a folder** in **Explorer** and select **Copy Folder Structure**.
-- Alternatively, open **Command Palette** (`Ctrl+Shift+P`) and search for **Copy Folder Structure**.
+
+### Copy Folder Structure:
+1. **Right-click a folder** in **Explorer** and select **Copy Folder Structure**.
+2. Alternatively, open the **Command Palette** (`Ctrl+Shift+P`) and search for **Copy Folder Structure**.
+
+### Create Folder Structure:
+1. **Right-click a folder** in **Explorer** and select **Create Project Using Folder Structure**.
+   - Alternatively, open the Command Palette (`Ctrl+Shift+P`) and search for **Create Project Using Folder Structure**.
+2. Enter the target directory path where the structure should be created.
+3. Choose the input format (`JSON` or `Plain Text`).
+4. Provide the folder structure input (e.g., from **Copy Folder Structure**) in the UI editor and click **Submit**.
 
 ## Settings:
 - **outputFormat**: Choose between:
   - `JSON Format`
   - `Plain Text Format`
+- Modify this setting in **Settings** (`Ctrl+,`) under `folderStructure`.
 
-Modify in **Settings** (`Ctrl+,`) under `folderStructure`.
+<img src="./assets/cfs_settings.webp" alt="Settings" style="width: auto; height: 250px;">
 
-## Example Output:
+## Preview:
+### Context Menu:
+<img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="width: auto; height: 250px;">
+
+### Copy Folder Structure Output:
 - **JSON Format**:
     ```json
     {
@@ -46,17 +84,27 @@ Modify in **Settings** (`Ctrl+,`) under `folderStructure`.
        |-- test.ts
     ```
 
+### Create Folder Structure:
+<img src="./assets/create_structure.gif" alt="Create Folder Structure Example" style="width: 80%; height: 400px;">
+
 ## How It Works:
-- Scans the folder structure, respecting `.gitignore` files.
-- Excludes files like `node_modules` and `hidden files` by default.
-- Copies the structure to clipboard in the selected format.
+### Copy Folder Structure:
+1. Scans the folder structure, respecting `.gitignore` files.
+2. Excludes files like `node_modules` and hidden files by default.
+3. Copies the structure to the clipboard in the selected format.
+
+### Create Folder Structure:
+1. Reads user input from the provided webview.
+2. Validates and parses the input (`JSON` or `Plain Text`).
+3. Generates folders and files in the specified target directory.
 
 ## Troubleshooting:
 - **No Option in Context Menu**: Reload VS Code (`Ctrl+Shift+P` → `Reload Window`).
 - **Clipboard Not Working**: Check system permissions.
+- **Input Error (Create)**: Ensure the input follows the required JSON or Plain Text format.
 
 ## License:
-MIT License.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 ## Contact:
-For questions, open an issue on the [GitHub repository](https://github.com/ShreyPurohit/copy-folder-structure-vscode/issues).
+For questions or feedback, open an issue on the [GitHub repository](https://github.com/ShreyPurohit/copy-folder-structure-vscode/issues).

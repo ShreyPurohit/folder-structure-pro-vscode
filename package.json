@@ -1,23 +1,28 @@
 {
-  "name": "copy-folder-structure",
-  "displayName": "Copy Folder Structure",
-  "description": "Easily copy the folder structure of any directory in plain text or JSON format. Includes support for .gitignore and excludes hidden files!",
+  "name": "folder-structure-pro",
+  "displayName": "Folder Structure Pro",
+  "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support!",
   "publisher": "iamshreydxv",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.54.0"
   },
-  "icon": "assets/banner.webp",
+  "icon": "assets/icon.webp",
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {
         "command": "extension.copyFolderStructure",
         "title": "Copy Folder Structure",
+        "category": "Explorer"
+      },
+      {
+        "command": "extension.createProjectFromStructure",
+        "title": "Create Project Using Folder Structure",
         "category": "Explorer"
       }
     ],
@@ -26,13 +31,18 @@
         {
           "command": "extension.copyFolderStructure",
           "when": "explorerResourceIsFolder",
-          "group": "copyFolderStructureGroup"
+          "group": "FolderStructureProGroup"
+        },
+        {
+          "command": "extension.createProjectFromStructure",
+          "when": "explorerResourceIsFolder",
+          "group": "FolderStructureProGroup"
         }
       ]
     },
     "configuration": {
       "type": "object",
-      "title": "Folder Structure",
+      "title": "Folder Structure Pro",
       "properties": {
         "folderStructure.outputFormat": {
           "type": "string",
@@ -41,7 +51,7 @@
             "Plain Text Format"
           ],
           "default": "JSON Format",
-          "description": "Format of the copied folder structure"
+          "description": "Format of the folder structure output (JSON or plain text)"
         }
       }
     }
@@ -76,20 +86,20 @@
   "license": "MIT",
   "keywords": [
     "folder structure",
-    "copy structure",
-    "json",
-    "plain text",
+    "copy folder",
+    "create project",
+    "json format",
+    "plain text format",
     "gitignore",
-    "explorer context",
-    "file explorer",
+    "project creation",
     "vs code extension"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShreyPurohit/copy-folder-structure-vscode.git"
+    "url": "https://github.com/ShreyPurohit/folder-structure-pro-vscode.git"
   },
   "bugs": {
-    "url": "https://github.com/ShreyPurohit/copy-folder-structure-vscode/issues"
+    "url": "https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues"
   },
-  "homepage": "https://github.com/ShreyPurohit/copy-folder-structure-vscode#readme"
+  "homepage": "https://github.com/ShreyPurohit/folder-structure-pro-vscode#readme"
 }
