@@ -1,9 +1,9 @@
 {
-  "name": "folder-structure-pro",
+  "name": "copy-folder-structure",
   "displayName": "Folder Structure Pro",
-  "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support!",
+  "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support, and quickly copy file names with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -22,7 +22,12 @@
       },
       {
         "command": "extension.createProjectFromStructure",
-        "title": "Create Project Using Folder Structure",
+        "title": "Create Folder Structure",
+        "category": "Explorer"
+      },
+      {
+        "command": "extension.copyFileName",
+        "title": "Copy File Name",
         "category": "Explorer"
       }
     ],
@@ -37,6 +42,11 @@
           "command": "extension.createProjectFromStructure",
           "when": "explorerResourceIsFolder",
           "group": "FolderStructureProGroup"
+        },
+        {
+          "command": "extension.copyFileName",
+          "when": "resourceExtname",
+          "group": "6_copypath@-10"
         }
       ]
     },
@@ -92,7 +102,13 @@
     "plain text format",
     "gitignore",
     "project creation",
-    "vs code extension"
+    "vs code extension",
+    "copy file name",
+    "file name clipboard",
+    "file management",
+    "file organization",
+    "explorer context menu",
+    "vscode productivity"
   ],
   "repository": {
     "type": "git",

@@ -1,9 +1,14 @@
 import * as fs from 'fs';
+import ignore from 'ignore';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import ignore from 'ignore';
-import { loadIgnoreRules, getFolderStructure, formatStructure } from './utils';
+import { formatStructure, getFolderStructure, loadIgnoreRules } from './utils';
 
+/**
+ * Copies the structure of a selected folder to the clipboard in the specified format.
+ * @param uri The URI of the selected folder. This should represent a valid, local directory path.
+ * @throws Displays error messages if the folder is invalid, inaccessible, or if the operation fails.
+ */
 export default vscode.commands.registerCommand('extension.copyFolderStructure', async (uri: vscode.Uri) => {
     try {
         if (!uri || !fs.statSync(uri.fsPath).isDirectory()) {
