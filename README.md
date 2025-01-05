@@ -2,7 +2,6 @@
 
 ## Table of Contents
 - [Features](#features)
-- [Installation](#installation)
 - [Usage](#usage)
 - [Preview](#preview)
 - [How It Works](#how-it-works)
@@ -14,24 +13,19 @@
 - **Copy Folder Structure** to clipboard:
   - Supports two **output formats**: 
     - **JSON Format** (default)
-    - **Plain Text Format** (tree-like structure with `|--` for hierarchy)
+    - **Plain Text Format** (GitIgnest-style tree structure, LLM-friendly)
   - **Right-click** context menu in **Explorer** for quick access
   - Automatically **ignores files and folders** specified in `.gitignore` (e.g., `node_modules`)
 
 - **Create Folder Structure**:
   - Create a folder structure from user-provided input in two formats:
     - **JSON Format**: Parses JSON input and generates directories/files.
-    - **Plain Text Format**: Parses a tree-like structure to create folders and files.
+    - **Plain Text Format**: Parses a GitIgnest-style tree structure (LLM-compatible) to create folders and files.
   - Includes **input validation** to ensure proper formatting.
 
 - **Copy File Name**:
   - **Right-click** a file in **Explorer** to copy its name to the clipboard.
   - Works only for **local files** and provides feedback when successful or in case of error.
-
-## Installation:
-1. Open **VS Code**.
-2. Go to the **Extensions** tab.
-3. Search for **Folder Structure Pro** and click **Install**.
 
 ## Usage:
 
@@ -62,14 +56,13 @@
 <img src="./assets/cfs_settings.webp" alt="Settings" style="width: auto; height: 250px;">
 
 #### Context Menu:
-<img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="width: auto; height: 200px;">
-<img src="./assets/copy_file_name.webp" alt="Copy File Name" style="width: auto; height: 200px;">
+<img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="height: 300px;">
 
 #### Copy File Name:
 <img src="./assets/copy_file_name.gif" alt="Copy File Name Example">
 
 #### Create Folder Structure:
-<img src="./assets/create_structure.gif" alt="Create Folder Structure Example" style="width: 80%; height: 400px;">
+<img src="./assets/create_structure.gif" alt="Create Folder Structure Example" style="width: 100%; height: 400px;">
 
 
 ### Copy Folder Structure Output:
@@ -85,20 +78,24 @@
       }
     }
     ```
-- **Plain Text Format**:
+- **Plain Text Format** (GitIgnest-style, LLM-friendly):
     ```
-    app
-       |-- index.js
-       |-- hello.js
-    test
-       |-- test.ts
+    Directory structure:
+    └── project/
+         ├── app/
+         │    ├── index.js
+         │    └── hello.js
+         └── test/
+              └── test.ts
     ```
 
 ## How It Works:
 ### Copy Folder Structure:
 1. Scans the folder structure, respecting `.gitignore` files.
 2. Excludes files like `node_modules` and hidden files by default.
-3. Copies the structure to the clipboard in the selected format.
+3. Copies the structure to the clipboard in the selected format:
+   - JSON: Standard hierarchical object representation
+   - Plain Text: GitIgnest-style format that's easily readable by both humans and LLMs
 
 ### Create Folder Structure:
 1. Reads user input from the provided webview.
