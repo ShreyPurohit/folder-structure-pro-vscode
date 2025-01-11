@@ -47,8 +47,6 @@ export class TreeParser {
         const level = LineParser.countIndentation(line);
         const name = LineParser.extractName(line);
 
-        if (!name) { return null; }
-
         return {
             name: name.endsWith('/') ? name.slice(0, -1) : name,
             level,

@@ -59,11 +59,15 @@
 <img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="height: 300px;">
 
 #### Copy File Name:
-<img src="./assets/copy_file_name.gif" alt="Copy File Name Example">
+![Copy File Name Example](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/copy_file_name.gif)
 
 #### Create Folder Structure:
-<img src="./assets/create_structure.gif" alt="Create Folder Structure Example" style="width: 100%; height: 400px;">
 
+##### With Git Ingest:
+![Usage With Git Ingest](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/usage_with_gitIngest.gif)
+
+##### Without Git Ingest:
+![Usage Without Git Ingest](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/usage_without_ingest.gif)
 
 ### Copy Folder Structure Output:
 - **JSON Format**:

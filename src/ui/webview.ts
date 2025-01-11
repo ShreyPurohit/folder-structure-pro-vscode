@@ -14,75 +14,202 @@ export class WebviewManager {
     }
 
     private static getWebviewContent(formatChoice: string): string {
+        const example = formatChoice === 'Plain Text Format'
+            ? `Directory structure:
+└── project/
+    ├── src/
+    │   ├── index.js
+    │   └── styles.css
+    └── README.md`
+            : `{
+  "project": {
+    "src": {
+      "index.js": null,
+      "styles.css": null
+    },
+    "README.md": null
+  }
+}`;
+
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
             <title>Folder Structure</title>
             <style>
+                :root {
+                    --container-bg: var(--vscode-editor-background);
+                    --container-fg: var(--vscode-editor-foreground);
+                    --header-bg: var(--vscode-titleBar-activeBackground);
+                    --header-fg: var(--vscode-titleBar-activeForeground);
+                    --button-bg: var(--vscode-button-background);
+                    --button-fg: var(--vscode-button-foreground);
+                    --button-hover-bg: var(--vscode-button-hoverBackground);
+                    --textarea-bg: var(--vscode-input-background);
+                    --textarea-fg: var(--vscode-input-foreground);
+                    --footer-bg: var(--vscode-statusBar-background);
+                    --footer-fg: var(--vscode-statusBar-foreground);
+                    --example-popup-bg: var(--vscode-dropdown-background);
+                    --example-popup-fg: var(--vscode-dropdown-foreground);
+                }
+
                 body {
-                    font-family: 'Segoe UI', Tahoma, sans-serif;
+                    font-family: var(--vscode-font-family);
                     margin: 0;
-                    padding: 0;
-                    background-color: #2d2a45;
-                    color: #e0e0f0;
+                    padding: 20px;
+                    background-color: var(--container-bg);
+                    color: var(--container-fg);
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    height: 100vh;
+                    min-height: 100vh;
                 }
+
                 .container {
-                    width: 80%;
+                    width: 90%;
                     max-width: 800px;
-                    background: #3c375e;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-                    border-radius: 8px;
+                    background: var(--container-bg);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 6px;
                     overflow: hidden;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
                 }
+
                 header {
-                    background: #5a4ca8;
-                    color: #f3f1ff;
+                    background: var(--header-bg);
+                    color: var(--header-fg);
                     padding: 1rem;
-                    text-align: center;
-                    font-size: 1.5rem;
-                    font-weight: bold;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
                 }
-                textarea {
-                    width: 100%;
-                    height: 300px;
+
+                .title {
+                    font-size: 1.2rem;
+                    font-weight: 600;
+                }
+
+                .example-btn {
+                    background: var(--button-bg);
+                    color: var(--button-fg);
                     border: none;
-                    padding: 1rem;
-                    font-family: 'Courier New', monospace;
-                    background: #1e1a33;
-                    color: #e0e0f0;
+                    padding: 6px 12px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    position: relative;
+                    transition: background-color 0.2s;
                 }
+
+                .example-btn:hover {
+                    background: var(--button-hover-bg);
+                }
+
+                .example-content {
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    right: 0;
+                    margin-top: 8px;
+                    background: var(--example-popup-bg);
+                    color: var(--example-popup-fg);
+                    padding: 1rem;
+                    border-radius: 4px;
+                    border: 1px solid var(--vscode-panel-border);
+                    white-space: pre;
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: 13px;
+                    z-index: 1000;
+                    text-align: left;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                }
+
+                .example-btn:hover .example-content {
+                    display: block;
+                }
+
+                .content {
+                    padding: 20px;
+                }
+
+                textarea {
+                    width: calc(100% - 24px);
+                    height: 300px;
+                    margin: 0;
+                    padding: 12px;
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 4px;
+                    background: var(--textarea-bg);
+                    color: var(--textarea-fg);
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: 14px;
+                    line-height: 1.5;
+                    resize: vertical;
+                }
+
                 textarea:focus {
                     outline: none;
+                    border-color: var(--vscode-focusBorder);
                 }
+
                 footer {
-                    padding: 1rem;
-                    text-align: center;
-                    background: #4a426e;
+                    padding: 16px;
+                    text-align: right;
+                    background: var(--footer-bg);
                 }
-                button {
-                    background: #7a68db;
-                    color: #f3f1ff;
+
+                .submit-btn {
+                    background: var(--button-bg);
+                    color: var(--button-fg);
                     border: none;
-                    padding: 0.5rem 1rem;
-                    font-weight: bold;
-                    border-radius: 4px;
+                    padding: 8px 16px;
+                    border-radius: 3px;
                     cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 500;
+                    transition: background-color 0.2s;
+                }
+
+                .submit-btn:hover {
+                    background: var(--button-hover-bg);
+                }
+
+                .submit-btn:focus {
+                    outline: 2px solid var(--vscode-focusBorder);
+                    outline-offset: 2px;
+                }
+
+                @media (max-width: 600px) {
+                    .container {
+                        width: 100%;
+                    }
+                    
+                    header {
+                        flex-direction: column;
+                        gap: 10px;
+                        text-align: center;
+                    }
                 }
             </style>
         </head>
         <body>
             <div class="container">
-                <header>Paste Folder Structure (${formatChoice})</header>
-                <textarea id="folderStructure" placeholder="Paste your folder structure here..."></textarea>
+                <header>
+                    <span class="title">Paste Folder Structure (${formatChoice})</span>
+                    <button class="example-btn">
+                        View Example
+                        <div class="example-content">${example}</div>
+                    </button>
+                </header>
+                <div class="content">
+                    <textarea 
+                        id="folderStructure" 
+                        placeholder="Paste your folder structure here..."
+                    ></textarea>
+                </div>
                 <footer>
-                    <button onclick="submit()">Submit</button>
+                    <button class="submit-btn" onclick="submit()">Submit</button>
                 </footer>
             </div>
             <script>

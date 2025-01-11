@@ -51,7 +51,15 @@ export class StructureService {
         if (format === 'Plain Text Format') {
             await this.createFromPlainText(basePath, content);
         } else {
-            await this.createFromJSON(basePath, JSON.parse(content));
+            try {
+                const structure = JSON.parse(content);
+                if (typeof structure !== 'object' || structure === null) {
+                    throw new Error('Invalid JSON structure');
+                }
+                await this.createFromJSON(basePath, structure);
+            } catch (error) {
+                throw new Error('Invalid JSON format');
+            }
         }
     }
 
