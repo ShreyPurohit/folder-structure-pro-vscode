@@ -10,3 +10,8 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('extension.createProjectFromStructure', createStructure)
     );
 }
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */

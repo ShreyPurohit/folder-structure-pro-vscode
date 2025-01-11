@@ -14,3 +14,8 @@ export interface TreeNode {
     level: number;
     isDirectory: boolean;
 }
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */

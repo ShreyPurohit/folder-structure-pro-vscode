@@ -32,3 +32,8 @@ export class FileSystemService {
         return fs.promises.readdir(path, { withFileTypes: true });
     }
 }
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */

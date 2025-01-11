@@ -1,31 +1,64 @@
-<img src="./assets/banner.webp" alt="Folder Structure Pro" style="width: 100%; height: 250px;">
+<img src="./assets/banner.webp" alt="Folder Structure Pro" style="width: 100%; height: 250px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 ## Table of Contents
-- [Features](#features)
-- [Usage](#usage)
-- [Preview](#preview)
-- [How It Works](#how-it-works)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Contact](#contact)
+- [✨ Features](#features)
+- [🚀 Quick Start](#quick-start)
+- [📖 Detailed Usage](#detailed-usage)
+  - [Copy Folder Structure](#copy-folder-structure)
+  - [Create Folder Structure](#create-folder-structure)
+  - [Copy File Name](#copy-file-name)
+- [⚙️ Settings](#settings)
+- [📸 Preview](#preview)
+  - [Setting](#settings-1)
+  - [Context Menu](#context-menu)
+  - [Copy File Name](#copy-file-name-2)
+  - [Create Folder Structure](#create-folder-structure-2)
+    - [Common Usage](#common-usage)
+    - **[Usage With Git Ingest](#with-git-ingest)**
+- [🔍 How It Works](#how-it-works)
+- [❓ Troubleshooting](#troubleshooting)
+- [📄 License](#license)
+- [📬 Contact](#contact)
 
-## Features:
-- **Copy Folder Structure** to clipboard:
-  - Supports two **output formats**: 
-    - **JSON Format** (default)
-    - **Plain Text Format** (GitIgnest-style tree structure, LLM-friendly)
-  - **Right-click** context menu in **Explorer** for quick access
-  - Automatically **ignores files and folders** specified in `.gitignore` (e.g., `node_modules`)
+## ✨ Features
+- **Copy Folder Structure** 📋
+  - **Two Output Formats**:
+    - 🌳 **Plain Text Format** (GitIgnest-style tree structure) (default)
+    - 📝 **JSON Format**
+  - Right-click menu integration
+  - Smart `.gitignore` handling
 
-- **Create Folder Structure**:
-  - Create a folder structure from user-provided input in two formats:
-    - **JSON Format**: Parses JSON input and generates directories/files.
-    - **Plain Text Format**: Parses a GitIgnest-style tree structure (LLM-compatible) to create folders and files.
-  - Includes **input validation** to ensure proper formatting.
+- **Create Folder Structure** 🏗️
+  - Support for both JSON and Plain Text formats
+  - Interactive UI with examples
+  - Input validation
 
-- **Copy File Name**:
-  - **Right-click** a file in **Explorer** to copy its name to the clipboard.
-  - Works only for **local files** and provides feedback when successful or in case of error.
+- **Copy File Name** 📎
+  - Quick file name copying
+  - Error handling and feedback
+
+## 🚀 Quick Start
+1. Install the extension
+2. Right-click any folder in Explorer
+3. Choose "Copy Folder Structure" or "Create Project Using Folder Structure"
+
+## 📖 Detailed Usage
+
+### Copy Folder Structure
+1. **Right-click** a folder in Explorer
+2. Select **Copy Folder Structure**
+3. Structure is copied in your preferred format (JSON/Plain Text)
+
+### Create Folder Structure
+1. **Right-click** in Explorer or use Command Palette
+2. Choose **Create Folder Structure**
+3. Enter target directory
+4. Select format and paste structure
+5. Click Submit
+
+### Copy File Name
+- Right-click any file
+- Select **Copy File Name**
 
 ## Usage:
 
@@ -52,22 +85,22 @@
 
 ## Preview:
 
-#### Settings:
-<img src="./assets/cfs_settings.webp" alt="Settings" style="width: auto; height: 250px;">
+### Settings:
+<img src="./assets/cfs_settings.webp" alt="Settings" style="height: 250px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
-#### Context Menu:
-<img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="height: 300px;">
+### Context Menu:
+<img src="./assets/cfs_explorer_context.webp" alt="Explorer Context" style="height: 300px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
-#### Copy File Name:
-![Copy File Name Example](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/copy_file_name.gif)
+### Copy File Name:
+<img src="./assets/copy_file_name.gif" alt="Copy File Name Example" style="height: 300px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
-#### Create Folder Structure:
+### Create Folder Structure:
+
+##### Common Usage:
+<img src="./assets/common_usage.gif" alt="Common Usage" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 ##### With Git Ingest:
-![Usage With Git Ingest](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/usage_with_gitIngest.gif)
-
-##### Without Git Ingest:
-![Usage Without Git Ingest](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/usage_without_ingest.gif)
+<img src="./assets/usage_with_gitIngest.gif" alt="Usage With Git Ingest" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 ### Copy Folder Structure Output:
 - **JSON Format**:

@@ -60,7 +60,7 @@
             "JSON Format",
             "Plain Text Format"
           ],
-          "default": "JSON Format",
+          "default": "Plain Text Format",
           "description": "Format of the folder structure output (JSON or plain text)"
         }
       }

@@ -1,4 +1,4 @@
-export const DEFAULT_OUTPUT_FORMAT = 'JSON Format';
+export const DEFAULT_OUTPUT_FORMAT = 'Plain Text Format';
 export const INDENTATION_SPACES = 4;
 export const DEFAULT_ENCODING = 'utf-8';
 
@@ -9,3 +9,8 @@ export const ERROR_MESSAGES = {
     EMPTY_STRUCTURE: 'Plain Text structure cannot be empty.',
     TARGET_REQUIRED: 'Target directory is required.'
 } as const;
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */

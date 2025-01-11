@@ -1,9 +1,9 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
-import { WebviewManager } from '../ui/webview';
-import { StructureService } from '../services/structure';
+import * as vscode from 'vscode';
 import { ERROR_MESSAGES } from '../constants';
+import { StructureService } from '../services/structure';
 import { OutputFormat, WebviewMessage } from '../types';
+import { WebviewManager } from '../ui/webview';
 
 const FORMAT_OPTIONS: OutputFormat[] = ['Plain Text Format', 'JSON Format'];
 
@@ -46,3 +46,8 @@ export async function createStructure(): Promise<void> {
         vscode.window.showErrorMessage(`Failed to create project: ${(error as Error).message}`);
     }
 }
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */

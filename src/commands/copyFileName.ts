@@ -25,3 +25,8 @@ export async function copyFileName(uri: vscode.Uri): Promise<void> {
         vscode.window.showErrorMessage(`Failed to copy file name: ${(error as Error).message}`);
     }
 }
+
+/*
+ * Copyright (c) 2025 Shrey Purohit.
+ * This code is licensed under the MIT License.
+ */
