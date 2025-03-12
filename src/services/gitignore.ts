@@ -1,21 +1,32 @@
 import ignore from 'ignore';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { FileSystemService } from './fileSystem';
 
 export class GitignoreService {
     static async loadRules(dirPath: string): Promise<string[]> {
-        const gitignorePath = path.join(dirPath, '.gitignore');
+        const config = vscode.workspace.getConfiguration('folderStructure');
+        const ignorePatterns = config.get<string[]>('ignorePatterns', ['node_modules', '.*']);
+        const respectGitignore = config.get<boolean>('respectGitignore', true);
 
-        if (!(await FileSystemService.exists(gitignorePath))) {
-            return [];
+        let rules = [...ignorePatterns];
+
+        if (respectGitignore) {
+            const gitignorePath = path.join(dirPath, '.gitignore');
+            if (await FileSystemService.exists(gitignorePath)) {
+                const content = await FileSystemService.readFile(gitignorePath);
+                rules = rules.concat(content.split('\n').filter(line =>
+                    line.trim() && !line.startsWith('#')
+                ));
+            }
         }
 
-        const content = await FileSystemService.readFile(gitignorePath);
-        return content.split('\n').filter(Boolean);
+        return rules;
     }
 
     static isIgnored(relativePath: string, rules: string[]): boolean {
-        return ignore().add(rules).ignores(relativePath);
+        const ig = ignore().add(rules);
+        return ig.ignores(relativePath);
     }
 }
 

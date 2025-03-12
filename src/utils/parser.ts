@@ -1,6 +1,6 @@
 import { TreeNode } from "../types";
 
-export class LineParser {
+class LineParser {
     static countIndentation(line: string): number {
         let spaces = 0;
         for (let i = 0; i < line.length; i++) {

@@ -1,5 +1,17 @@
 <img src="./assets/banner.webp" alt="Folder Structure Pro" style="width: 100%; height: 250px; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure?cacheSeconds=3600">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/iamshreydxv.copy-folder-structure?cacheSeconds=3600" alt="Marketplace Version"/>
+  </a>
+  <a href="https://img.shields.io/visual-studio-marketplace/d/iamshreydxv.copy-folder-structure?cacheSeconds=3600">
+    <img src="https://img.shields.io/visual-studio-marketplace/d/iamshreydxv.copy-folder-structure?cacheSeconds=3600" alt="Downloads"/>
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure?cacheSeconds=3600">
+    <img src="https://img.shields.io/visual-studio-marketplace/r/iamshreydxv.copy-folder-structure?cacheSeconds=3600" alt="Ratings"/>
+  </a>
+</p>
+
 ## Table of Contents
 - [✨ Features](#features)
 - [🚀 Quick Start](#quick-start)
@@ -81,6 +93,8 @@
 - **outputFormat**: Choose between:
   - `JSON Format`
   - `Plain Text Format`
+- **ignorePatterns**:
+  - Add the folders you usually ignore here
 - Modify this setting in **Settings** (`Ctrl+,`) under `folderStructure`.
 
 ## Preview:
