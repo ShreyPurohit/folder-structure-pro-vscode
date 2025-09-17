@@ -18,7 +18,7 @@
 - Various encoding issues in tree drawing by using Unicode consistently
 - Type-safe configuration access and better error handling
 
-### Added
+### Previous Versions
 - v0.2 Added Banner and Extension Icon
 - v0.3 Added Major Support `Create Folder Structure`
 - v0.4 Added Feature `Copy File Name`

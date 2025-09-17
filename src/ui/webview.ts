@@ -31,7 +31,7 @@ export class WebviewManager {
   }
 }`;
 
-        return `<!DOCTYPE html>
+ return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
@@ -39,285 +39,875 @@ export class WebviewManager {
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
             <title>Folder Structure</title>
             <style>
-                :root {
-                    --container-bg: var(--vscode-editor-background);
-                    --container-fg: var(--vscode-editor-foreground);
-                    --header-bg: var(--vscode-titleBar-activeBackground);
-                    --header-fg: var(--vscode-titleBar-activeForeground);
-                    --button-bg: var(--vscode-button-background);
-                    --button-fg: var(--vscode-button-foreground);
-                    --button-hover-bg: var(--vscode-button-hoverBackground);
-                    --textarea-bg: var(--vscode-input-background);
-                    --textarea-fg: var(--vscode-input-foreground);
-                    --footer-bg: var(--vscode-statusBar-background);
-                    --footer-fg: var(--vscode-statusBar-foreground);
-                    --example-popup-bg: var(--vscode-dropdown-background);
-                    --example-popup-fg: var(--vscode-dropdown-foreground);
+                *, *::before, *::after { 
+                    box-sizing: border-box; 
                 }
-                
-                .badge {
-                    display: inline-block;
-                    padding: 2px 8px;
-                    border-radius: 999px;
-                    font-size: 11px;
-                    border: 1px solid var(--vscode-panel-border);
+
+                :root {
+                    /* Dark Theme Colors */
+                    --bg-primary: #0d0d0f;
+                    --bg-secondary: #1a1a1f;
+                    --bg-tertiary: #212127;
+                    --bg-elevated: #2a2a32;
+                    
+                    --lavender-50: #f8f6fc;
+                    --lavender-100: #ede7f5;
+                    --lavender-200: #ddd0eb;
+                    --lavender-300: #c8b3dd;
+                    --lavender-400: #b08cc9;
+                    --lavender-500: #9966b3;
+                    --lavender-600: #8855a3;
+                    --lavender-700: #744691;
+                    --lavender-800: #5f3a7a;
+                    --lavender-900: #4d2f63;
+                    
+                    --text-primary: #e8e8f0;
+                    --text-secondary: #c4c4d6;
+                    --text-tertiary: #a0a0b8;
+                    --text-muted: #7c7c94;
+                    --text-accent: #b08cc9;
+                    
+                    --success: #4ade80;
+                    --error: #f87171;
+                    --warning: #fbbf24;
+                    
+                    --border-light: #3a3a42;
+                    --border-medium: #4a4a54;
+                    --border-strong: #5a5a66;
+                    --border-accent: #6b5b95;
+                    
+                    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+                    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+                    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+                    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+                    --shadow-lavender: 0 4px 20px rgba(153, 102, 179, 0.15);
+                    
+                    /* Code Colors */
+                    --code-bg: #1e1e24;
+                    --code-border: #3a3a42;
+                    --code-text: #d4d4d8;
+                    --code-comment: #6b7280;
+                    --code-keyword: #c084fc;
+                    --code-string: #86efac;
+                    --code-number: #fbbf24;
+                    --code-function: #60a5fa;
+                    --code-operator: #f472b6;
+                    --code-bracket: #a78bfa;
+
+                    /* Interactive Element Base Styles */
+                    --interactive-bg: rgba(153, 102, 179, 0.15);
+                    --interactive-border: var(--lavender-600);
+                    --interactive-hover-bg: rgba(153, 102, 179, 0.25);
+                    --interactive-hover-border: var(--lavender-500);
+                }
+
+                /* Light Theme - Solarized Light + Lavender */
+                :root[data-theme='light'] {
+                    /* Solarized Base Colors */
+                    --solarized-base03: #002b36;
+                    --solarized-base02: #073642;
+                    --solarized-base01: #586e75;
+                    --solarized-base00: #657b83;
+                    --solarized-base0: #839496;
+                    --solarized-base1: #93a1a1;
+                    --solarized-base2: #eee8d5;
+                    --solarized-base3: #fdf6e3;
+                    
+                    /* Solarized Accents */
+                    --solarized-yellow: #b58900;
+                    --solarized-orange: #cb4b16;
+                    --solarized-red: #dc322f;
+                    --solarized-magenta: #d33682;
+                    --solarized-violet: #6c71c4;
+                    --solarized-blue: #268bd2;
+                    --solarized-cyan: #2aa198;
+                    --solarized-green: #859900;
+
+                    /* Backgrounds */
+                    --bg-primary: var(--solarized-base3);
+                    --bg-secondary: var(--solarized-base2);
+                    --bg-tertiary: #f5efe6;
+                    --bg-elevated: #ffffff;
+
+                    /* Lavender Accents */
+                    --lavender-50: #faf8ff;
+                    --lavender-100: #f3f0ff;
+                    --lavender-200: #e9e5ff;
+                    --lavender-300: #d4cdff;
+                    --lavender-400: #b8a9ff;
+                    --lavender-500: #9b82ff;
+                    --lavender-600: #8b5cf6;
+                    --lavender-700: #7c3aed;
+                    --lavender-800: #6d28d9;
+                    --lavender-900: #5b21b6;
+
+                    /* Text Colors */
+                    --text-primary: var(--solarized-base02);
+                    --text-secondary: var(--solarized-base01);
+                    --text-tertiary: var(--solarized-base00);
+                    --text-muted: var(--solarized-base1);
+                    --text-accent: var(--lavender-700);
+
+                    /* Status Colors - Fixed for light mode */
+                    --success: #16a34a;
+                    --error: #dc2626;
+                    --warning: var(--solarized-yellow);
+
+                    /* Borders */
+                    --border-light: #ede4d3;
+                    --border-medium: #ddd2c1;
+                    --border-strong: var(--solarized-base1);
+                    --border-accent: var(--lavender-400);
+
+                    /* Shadows */
+                    --shadow-sm: 0 1px 2px 0 rgba(0, 43, 54, 0.05);
+                    --shadow-md: 0 4px 6px -1px rgba(0, 43, 54, 0.08), 0 2px 4px -2px rgba(0, 43, 54, 0.06);
+                    --shadow-lg: 0 10px 15px -3px rgba(0, 43, 54, 0.08), 0 4px 6px -4px rgba(0, 43, 54, 0.06);
+                    --shadow-xl: 0 20px 25px -5px rgba(0, 43, 54, 0.1), 0 8px 10px -6px rgba(0, 43, 54, 0.08);
+                    --shadow-lavender: 0 4px 20px rgba(139, 92, 246, 0.1);
+
+                    /* Code Colors */
+                    --code-bg: var(--solarized-base3);
+                    --code-border: var(--solarized-base2);
+                    --code-text: var(--solarized-base02);
+                    --code-comment: var(--solarized-base1);
+                    --code-keyword: var(--solarized-violet);
+                    --code-string: var(--solarized-cyan);
+                    --code-number: var(--solarized-orange);
+                    --code-function: var(--solarized-blue);
+                    --code-operator: var(--solarized-magenta);
+                    --code-bracket: var(--lavender-600);
+
+                    /* Interactive Elements */
+                    --interactive-bg: rgba(139, 92, 246, 0.1);
+                    --interactive-border: var(--lavender-300);
+                    --interactive-hover-bg: rgba(139, 92, 246, 0.2);
+                    --interactive-hover-border: var(--lavender-200);
                 }
 
                 body {
-                    font-family: var(--vscode-font-family);
+                    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
                     margin: 0;
-                    padding: 20px;
-                    background-color: var(--container-bg);
-                    color: var(--container-fg);
+                    padding: 24px;
+                    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+                    color: var(--text-primary);
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     min-height: 100vh;
+                    line-height: 1.5;
                 }
 
                 .container {
-                    width: 90%;
-                    max-width: 800px;
-                    background: var(--container-bg);
-                    border: 1px solid var(--vscode-panel-border);
-                    border-radius: 6px;
+                    width: min(95%, 1100px);
+                    max-width: 1100px;
+                    background: var(--bg-elevated);
+                    border: 1px solid var(--border-accent);
+                    border-radius: 16px;
                     overflow: hidden;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                    box-shadow: var(--shadow-xl), var(--shadow-lavender);
+                    backdrop-filter: blur(10px);
                 }
 
+                /* HEADER FIXES START HERE */
                 header {
-                    background: var(--header-bg);
-                    color: var(--header-fg);
-                    padding: 1rem;
-                    display: grid;
-                    grid-template-columns: 1fr auto auto;
-                    gap: 12px;
+                    background: linear-gradient(135deg, var(--lavender-800) 0%, var(--lavender-900) 50%, #2a1f3d 100%);
+                    color: white;
+                    padding: 24px 28px;
+                    border-bottom: 3px solid var(--border-accent);
+                    position: relative;
+                    
+                    /* Fixed responsive layout */
+                    display: flex;
+                    flex-wrap: wrap;
                     align-items: center;
+                    justify-content: space-between;
+                    gap: 16px;
+                }
+
+                /* Light theme header - Fixed */
+                :root[data-theme='light'] header {
+                    background: linear-gradient(135deg, var(--lavender-600) 0%, var(--lavender-700) 50%, var(--lavender-800) 100%);
+                    color: white;
+                }
+
+                header::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, var(--lavender-400), transparent);
+                }
+
+                .header-title {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    flex: 1;
+                    min-width: 0; /* Allow text to shrink */
                 }
 
                 .title {
-                    font-size: 1.2rem;
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    letter-spacing: -0.025em;
+                    margin: 0;
+                    background: linear-gradient(135deg, white 0%, rgba(255,255,255,0.8) 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    white-space: nowrap;
+                }
+
+                /* Fixed theme toggle button */
+                .icon-btn.theme-toggle {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    box-shadow: var(--shadow-sm);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    backdrop-filter: blur(10px);
+                    font-size: 14px;
+                }
+
+                .icon-btn.theme-toggle:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-1px);
+                }
+
+                /* Fixed header controls container */
+                .header-controls {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    flex-shrink: 0;
+                }
+
+                /* Fixed status badge */
+                .status-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 16px;
+                    border-radius: 50px;
+                    font-size: 13px;
                     font-weight: 600;
+                    letter-spacing: 0.025em;
+                    text-transform: uppercase;
+                    border: 2px solid transparent;
+                    backdrop-filter: blur(10px);
+                    white-space: nowrap;
+                    
+                    /* Default state */
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    border-color: rgba(255, 255, 255, 0.2);
                 }
 
-                .example-btn {
-                    background: var(--button-bg);
-                    color: var(--button-fg);
-                    border: none;
-                    padding: 6px 12px;
-                    border-radius: 3px;
-                    font-size: 12px;
+                /* Status badge states - Fixed colors */
+                .status-badge.valid {
+                    background: rgba(74, 222, 128, 0.2);
+                    color: #4ade80;
+                    border-color: #4ade80;
+                }
+
+                .status-badge.invalid {
+                    background: rgba(248, 113, 113, 0.2);
+                    color: #f87171;
+                    border-color: #f87171;
+                }
+
+                .status-badge.warning {
+                    background: rgba(251, 191, 36, 0.2);
+                    color: #fbbf24;
+                    border-color: #fbbf24;
+                }
+
+                /* Light theme status badges - Fixed */
+                :root[data-theme='light'] .status-badge.valid {
+                    background: rgba(22, 163, 74, 0.15);
+                    color: #16a34a;
+                    border-color: #16a34a;
+                }
+
+                :root[data-theme='light'] .status-badge.invalid {
+                    background: rgba(220, 38, 38, 0.15);
+                    color: #dc2626;
+                    border-color: #dc2626;
+                }
+
+                :root[data-theme='light'] .status-badge.warning {
+                    background: rgba(181, 137, 0, 0.15);
+                    color: #b58900;
+                    border-color: #b58900;
+                }
+
+                .status-indicator {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: currentColor;
+                    flex-shrink: 0;
+                }
+
+                /* Fixed interactive button */
+                .interactive-btn {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    border: 2px solid rgba(255, 255, 255, 0.2);
+                    padding: 10px 20px;
+                    border-radius: 12px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    cursor: pointer;
                     position: relative;
-                    transition: background-color 0.2s;
+                    backdrop-filter: blur(10px);
+                    transition: all 0.2s ease;
+                    white-space: nowrap;
                 }
 
-                .example-btn:hover {
-                    background: var(--button-hover-bg);
+                .interactive-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-1px);
                 }
 
                 .example-content {
                     display: none;
                     position: absolute;
-                    top: 100%;
+                    top: calc(100% + 12px);
                     right: 0;
-                    margin-top: 8px;
-                    background: var(--example-popup-bg);
-                    color: var(--example-popup-fg);
-                    padding: 1rem;
-                    border-radius: 4px;
-                    border: 1px solid var(--vscode-panel-border);
+                    background: var(--bg-elevated);
+                    color: var(--code-text);
+                    padding: 20px;
+                    border-radius: 12px;
+                    border: 1px solid var(--border-accent);
                     white-space: pre;
-                    font-family: var(--vscode-editor-font-family);
+                    font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
                     font-size: 13px;
+                    line-height: 1.6;
                     z-index: 1000;
                     text-align: left;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                    box-shadow: var(--shadow-lg), var(--shadow-lavender);
+                    max-width: min(90vw, 500px);
+                    overflow: auto;
+                    backdrop-filter: blur(20px);
+                    background: var(--code-bg);
+                    border: 1px solid var(--code-border);
                 }
 
-                .example-btn:hover .example-content {
+                .interactive-btn:hover .example-content {
                     display: block;
                 }
 
+                /* MOBILE RESPONSIVE FIXES */
+                @media (max-width: 768px) {
+                    body { 
+                        padding: 16px; 
+                    }
+                    
+                    .container { 
+                        width: 100%; 
+                        border-radius: 12px; 
+                    }
+                    
+                    header { 
+                        padding: 20px;
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 16px;
+                    }
+
+                    .header-title {
+                        justify-content: center;
+                        order: 1;
+                    }
+                    
+                    .title { 
+                        font-size: 1.25rem;
+                        text-align: center;
+                    }
+
+                    .header-controls {
+                        order: 2;
+                        justify-content: center;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                    }
+                    
+                    .status-badge,
+                    .interactive-btn {
+                        flex: 1;
+                        min-width: 120px;
+                        max-width: 150px;
+                        justify-content: center;
+                    }
+                    
+                    .icon-btn.theme-toggle {
+                        order: 0;
+                        align-self: center;
+                        margin-bottom: 8px;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    header {
+                        padding: 16px;
+                    }
+                    
+                    .title {
+                        font-size: 1.125rem;
+                    }
+                    
+                    .header-controls {
+                        flex-direction: column;
+                        width: 100%;
+                    }
+                    
+                    .status-badge,
+                    .interactive-btn {
+                        width: 100%;
+                        max-width: none;
+                    }
+                }
+                /* HEADER FIXES END HERE */
+
                 .content {
-                    padding: 16px 20px 20px;
+                    padding: 32px;
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 16px;
+                    gap: 24px;
+                    background: var(--bg-tertiary);
+                }
+
+                .input-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+
+                .section-label {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: var(--text-accent);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 4px;
                 }
 
                 textarea {
-                    width: calc(100% - 24px);
-                    height: 340px;
+                    width: 100%;
+                    height: 400px;
                     margin: 0;
-                    padding: 12px;
-                    border: 1px solid var(--vscode-input-border);
-                    border-radius: 4px;
-                    background: var(--textarea-bg);
-                    color: var(--textarea-fg);
-                    font-family: var(--vscode-editor-font-family);
+                    padding: 20px;
+                    border: 2px solid var(--border-strong);
+                    border-radius: 12px;
+                    background: var(--code-bg);
+                    color: var(--code-text);
+                    font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
                     font-size: 14px;
-                    line-height: 1.5;
+                    line-height: 1.6;
                     resize: vertical;
+                    box-shadow: var(--shadow-sm);
+                    transition: all 0.2s ease;
+                }
+
+                textarea::placeholder {
+                    color: var(--text-muted);
+                    font-style: italic;
                 }
 
                 textarea:focus {
                     outline: none;
-                    border-color: var(--vscode-focusBorder);
+                    border-color: var(--lavender-500);
+                    box-shadow: 0 0 0 4px rgba(153, 102, 179, 0.2), var(--shadow-md);
+                }
+
+                :root[data-theme='light'] textarea:focus {
+                    border-color: var(--lavender-600);
+                    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15), var(--shadow-md);
+                }
+
+                .preview-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
                 }
 
                 .preview {
-                    width: calc(100% - 24px);
-                    height: 340px;
+                    width: 100%;
+                    height: 400px;
                     margin: 0;
-                    padding: 12px;
-                    border: 1px solid var(--vscode-panel-border);
-                    border-radius: 4px;
-                    font-family: var(--vscode-editor-font-family);
+                    padding: 20px;
+                    border: 2px solid var(--code-border);
+                    border-radius: 12px;
+                    font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
                     font-size: 13px;
+                    line-height: 1.6;
                     white-space: pre;
                     overflow: auto;
-                    background: var(--container-bg);
-                    color: var(--container-fg);
+                    background: var(--code-bg);
+                    color: var(--code-text);
+                    box-shadow: var(--shadow-sm);
+                }
+
+                .preview:empty::before {
+                    content: "Preview will appear here...";
+                    color: var(--text-muted);
+                    font-style: italic;
                 }
 
                 footer {
-                    padding: 16px;
-                    text-align: right;
-                    background: var(--footer-bg);
+                    padding: 24px 32px;
+                    background: var(--bg-secondary);
+                    border-top: 1px solid var(--border-accent);
                     display: flex;
-                    gap: 8px;
-                    justify-content: flex-end;
+                    gap: 12px;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
                 }
 
-                .submit-btn {
-                    background: var(--button-bg);
-                    color: var(--button-fg);
+                .button-group {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+
+                .btn {
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 3px;
+                    padding: 12px 24px;
+                    border-radius: 10px;
                     cursor: pointer;
-                    font-size: 13px;
-                    font-weight: 500;
-                    transition: background-color 0.2s;
+                    font-size: 14px;
+                    font-weight: 600;
+                    letter-spacing: 0.025em;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    min-height: 44px;
+                    box-shadow: var(--shadow-sm);
+                    transition: all 0.2s ease;
                 }
 
-                .submit-btn:hover {
-                    background: var(--button-hover-bg);
+                .btn-secondary {
+                    background: var(--bg-elevated);
+                    color: var(--text-secondary);
+                    border: 2px solid var(--border-strong);
                 }
 
-                .submit-btn:focus {
-                    outline: 2px solid var(--vscode-focusBorder);
-                    outline-offset: 2px;
+                .btn-secondary:hover {
+                    background: var(--interactive-bg);
+                    border-color: var(--interactive-border);
+                    color: var(--text-primary);
+                    transform: translateY(-1px);
+                }
+
+                :root[data-theme='light'] .btn-secondary:hover {
+                    background: var(--interactive-bg);
+                    border-color: var(--interactive-border);
+                }
+
+                .btn-primary {
+                    background: linear-gradient(135deg, var(--lavender-700) 0%, var(--lavender-800) 100%);
+                    color: var(--text-primary);
+                    border: 2px solid var(--lavender-600);
+                }
+
+                :root[data-theme='light'] .btn-primary {
+                    background: linear-gradient(135deg, var(--lavender-600) 0%, var(--lavender-700) 100%);
+                    color: white;
+                    border-color: var(--lavender-500);
+                }
+
+                .btn-primary:hover {
+                    background: linear-gradient(135deg, var(--lavender-600) 0%, var(--lavender-700) 100%);
+                    border-color: var(--lavender-500);
+                    box-shadow: var(--shadow-md);
+                    transform: translateY(-1px);
+                }
+
+                :root[data-theme='light'] .btn-primary:hover {
+                    background: linear-gradient(135deg, var(--lavender-500) 0%, var(--lavender-600) 100%);
+                    border-color: var(--lavender-400);
+                }
+
+                .btn:focus {
+                    outline: none;
+                    box-shadow: 0 0 0 4px rgba(153, 102, 179, 0.3);
+                }
+
+                :root[data-theme='light'] .btn:focus {
+                    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
+                }
+
+                @media (max-width: 900px) {
+                    .content { 
+                        grid-template-columns: 1fr; 
+                        padding: 24px;
+                        gap: 20px;
+                    }
+                    
+                    textarea, .preview { height: 300px; }
+                    
+                    footer { 
+                        flex-direction: column; 
+                        gap: 16px;
+                        padding: 20px;
+                    }
+                    
+                    .button-group { 
+                        width: 100%; 
+                        justify-content: center;
+                    }
+                    
+                    .btn { 
+                        flex: 1; 
+                        justify-content: center;
+                        min-width: 120px;
+                    }
                 }
 
                 @media (max-width: 600px) {
-                    .container {
+                    .button-group { 
+                        flex-direction: column; 
                         width: 100%;
                     }
                     
-                    header {
-                        flex-direction: column;
-                        gap: 10px;
-                        text-align: center;
+                    .btn { 
+                        width: 100%; 
                     }
                 }
+
+                /* Thin custom scrollbars */
+                * {
+                    scrollbar-width: thin;
+                    scrollbar-color: var(--border-accent) transparent;
+                }
+                *::-webkit-scrollbar { width: 8px; height: 8px; }
+                *::-webkit-scrollbar-track { background: transparent; }
+                *::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 8px; }
+                *::-webkit-scrollbar-thumb:hover { background: var(--lavender-600); }
             </style>
         </head>
         <body>
             <div class="container">
                 <header>
-                    <span class="title">Paste Folder Structure (${formatChoice})</span>
-                    <span id="status" class="badge">Ready</span>
-                    <button class="example-btn">
-                        View Example
-                        <div class="example-content">${example}</div>
-                    </button>
+                    <div class="header-title">
+                        <h1 class="title">Folder Structure Builder</h1>
+                        <button id="themeBtn" class="icon-btn theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+                            <span id="themeIcon" aria-hidden="true">☾</span>
+                        </button>
+                    </div>
+                    <div class="button-group">
+                        <div id="status" class="btn status-badge">
+                            <div class="status-indicator"></div>
+                            <span>Ready</span>
+                        </div>
+                        <button class="btn interactive-btn">
+                            <span>View Example</span>
+                            <div class="example-content">${example}</div>
+                        </button>
+                    </div>
                 </header>
+                
                 <div class="content">
-                    <div>
+                    <div class="input-section">
+                        <div class="section-label">Input (${formatChoice})</div>
                         <textarea 
                             id="folderStructure" 
-                            placeholder="Paste your folder structure here..."
+                            placeholder="Paste your folder structure here and watch the magic happen..."
                             aria-label="Folder structure input"
                         ></textarea>
                     </div>
-                    <pre id="preview" class="preview" aria-label="Preview"></pre>
+                    
+                    <div class="preview-section">
+                        <div class="section-label">Preview</div>
+                        <pre id="preview" class="preview" aria-label="Structure preview"></pre>
+                    </div>
                 </div>
+                
                 <footer>
-                    <button class="submit-btn" id="copyBtn" title="Copy preview">Copy Preview</button>
-                    <button class="submit-btn" id="clearBtn" title="Clear input">Clear</button>
-                    <span style="flex:1"></span>
-                    <button class="submit-btn" id="submitBtn">Create</button>
+                    <div class="button-group">
+                        <button class="btn btn-secondary" id="copyBtn" title="Copy preview to clipboard">
+                            Copy Preview
+                        </button>
+                        <button class="btn btn-secondary" id="clearBtn" title="Clear input field">
+                            Clear All
+                        </button>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="submitBtn">
+                        Create Structure
+                    </button>
                 </footer>
             </div>
+            
             <script>
                 const vscode = acquireVsCodeApi();
                 const textarea = document.getElementById('folderStructure');
                 const statusEl = document.getElementById('status');
+                const statusSpan = statusEl.querySelector('span');
                 const previewEl = document.getElementById('preview');
                 const submitBtn = document.getElementById('submitBtn');
                 const copyBtn = document.getElementById('copyBtn');
                 const clearBtn = document.getElementById('clearBtn');
+                const themeBtn = document.getElementById('themeBtn');
 
-                function renderStatus({ valid, invalidLines, errorMessage }) {
+                function updateStatus({ valid, invalidLines, errorMessage }) {
+                    // Reset classes
+                    statusEl.className = 'status-badge';
+                    
                     if (errorMessage) {
-                        statusEl.textContent = 'Invalid';
-                        statusEl.style.color = 'var(--vscode-errorForeground)';
-                        statusEl.style.borderColor = 'var(--vscode-errorForeground)';
+                        statusEl.classList.add('invalid');
+                        statusSpan.textContent = 'Invalid';
                         return;
                     }
+                    
                     if (valid) {
-                        statusEl.textContent = 'Valid';
-                        statusEl.style.color = 'var(--vscode-editor-foreground)';
-                        statusEl.style.borderColor = 'var(--vscode-panel-border)';
+                        statusEl.classList.add('valid');
+                        statusSpan.textContent = 'Valid';
                     } else {
-                        statusEl.textContent = invalidLines.length ? ('Invalid: ' + invalidLines.join(', ')) : 'Invalid';
-                        statusEl.style.color = 'var(--vscode-errorForeground)';
-                        statusEl.style.borderColor = 'var(--vscode-errorForeground)';
+                        statusEl.classList.add('invalid');
+                        statusSpan.textContent = invalidLines.length > 0 
+                            ? \`Invalid (\${invalidLines.length} issues)\`
+                            : 'Invalid';
                     }
                 }
 
                 function requestValidation() {
-                    const content = textarea.value;
+                    const content = textarea.value.trim();
+                    
+                    if (!content) {
+                        statusEl.className = 'status-badge';
+                        statusSpan.textContent = 'Ready';
+                        return;
+                    }
+                    
+                    statusEl.className = 'status-badge warning';
+                    statusSpan.textContent = 'Validating...';
+                    
                     vscode.postMessage({ command: 'validate', text: content });
                 }
 
-                textarea.addEventListener('input', debounce(requestValidation, 250));
+                // Debounce function for performance
+                function debounce(fn, delay) {
+                    let timeoutId;
+                    return function(...args) {
+                        clearTimeout(timeoutId);
+                        timeoutId = setTimeout(() => fn.apply(this, args), delay);
+                    };
+                }
+
+                const debouncedValidation = debounce(requestValidation, 300);
+
+                // Event listeners
+                textarea.addEventListener('input', debouncedValidation);
+                
                 submitBtn.addEventListener('click', () => {
-                    const content = textarea.value;
-                    vscode.postMessage({ command: 'submit', text: content });
+                    const content = textarea.value.trim();
+                    if (content) {
+                        vscode.postMessage({ command: 'submit', text: content });
+                    }
                 });
 
                 copyBtn.addEventListener('click', async () => {
                     const text = previewEl.textContent || '';
-                    if (!text) { return; }
-                    vscode.postMessage({ command: 'copyPreview', text });
-                });
-
-                clearBtn.addEventListener('click', () => {
-                    textarea.value = '';
-                    requestValidation();
-                    textarea.focus();
-                });
-
-                window.addEventListener('message', (event) => {
-                    const msg = event.data || {};
-                    if (msg.command === 'validationResult') {
-                        renderStatus(msg);
-                        previewEl.textContent = msg.preview || '';
+                    if (text && text !== "Preview will appear here...") {
+                        vscode.postMessage({ command: 'copyPreview', text });
+                        
+                        // Provide visual feedback
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.style.background = 'var(--success)';
+                        
+                        setTimeout(() => {
+                            copyBtn.textContent = originalText;
+                            copyBtn.style.background = '';
+                        }, 1500);
                     }
                 });
 
-                function debounce(fn, wait) {
-                    let t;
-                    return function() {
-                        clearTimeout(t);
-                        t = setTimeout(fn, wait);
-                    };
+                clearBtn.addEventListener('click', () => {
+                    if (textarea.value.trim()) {
+                        textarea.value = '';
+                        previewEl.textContent = '';
+                        requestValidation();
+                        textarea.focus();
+                        
+                        // Visual feedback
+                        const originalText = clearBtn.textContent;
+                        clearBtn.textContent = 'Cleared!';
+                        setTimeout(() => {
+                            clearBtn.textContent = originalText;
+                        }, 1000);
+                    }
+                });
+
+                // Handle messages from VS Code
+                window.addEventListener('message', (event) => {
+                    const message = event.data;
+                    
+                    if (message.command === 'validationResult') {
+                        updateStatus(message);
+                        previewEl.textContent = message.preview || '';
+                    }
+                });
+
+                // Initialize with empty state
+                requestValidation();
+                
+                // Theme toggle: infer VS Code theme, allow manual toggle (no persistence)
+                function parseColorToRGB(c) {
+                    const s = (c || '').toString().trim();
+                    if (s.startsWith('#')) {
+                        const hex = s.slice(1);
+                        const h = hex.length === 3 ? hex.split('').map(x=>x+x).join('') : hex;
+                        const num = parseInt(h, 16) || 0x1e1e1e;
+                        return { r: (num>>16)&255, g: (num>>8)&255, b: num&255 };
+                    }
+                    const m = s.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i);
+                    if (m) { return { r:+m[1], g:+m[2], b:+m[3] }; }
+                    return { r:30, g:30, b:30 };
                 }
 
-                // initial validate to show empty/initial state
-                requestValidation();
+                function luminance({r,g,b}) {
+                    const a=[r,g,b].map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)});
+                    return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
+                }
+
+                function setTheme(mode){
+                    if(mode==='light') document.documentElement.setAttribute('data-theme','light');
+                    else document.documentElement.removeAttribute('data-theme');
+                    const icon = document.getElementById('themeIcon');
+                    if (icon) icon.textContent = (mode==='light') ? '☾' : '☀';
+                }
+
+                (function initTheme(){
+                    const bg = getComputedStyle(document.documentElement).getPropertyValue('--vscode-editor-background');
+                    const lum = luminance(parseColorToRGB(bg));
+                    setTheme(lum < 0.5 ? 'dark' : 'light');
+                })();
+
+                themeBtn.addEventListener('click', ()=>{
+                    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+                    setTheme(isLight ? 'dark' : 'light');
+                });
+                
+                // Focus textarea on load
+                setTimeout(() => {
+                    textarea.focus();
+                }, 100);
             </script>
         </body>
         </html>`;
