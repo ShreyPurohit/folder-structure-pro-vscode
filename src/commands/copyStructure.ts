@@ -1,18 +1,27 @@
 import * as vscode from 'vscode';
-import { ERROR_MESSAGES } from '../constants';
+import { ERROR_MESSAGES, DEFAULT_OUTPUT_FORMAT } from '../constants';
 import { FileSystemService } from '../services/fileSystem';
 import { StructureService } from '../services/structure';
 import { OutputFormat } from '../types';
 
 export async function copyStructure(uri: vscode.Uri): Promise<void> {
     try {
-        if (!uri || !(await FileSystemService.isDirectory(uri.fsPath))) {
-            throw new Error(ERROR_MESSAGES.INVALID_DIRECTORY);
+        let target = uri;
+        if (!target || !(await FileSystemService.isDirectory(target))) {
+            const pick = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+            });
+            if (!pick || !(await FileSystemService.isDirectory(pick[0]))) {
+                throw new Error(ERROR_MESSAGES.INVALID_DIRECTORY);
+            }
+            target = pick[0];
         }
 
-        const structure = await StructureService.getStructure(uri.fsPath);
+        const structure = await StructureService.getStructure(target.fsPath);
         const outputFormat = vscode.workspace.getConfiguration('folderStructure')
-            .get<string>('outputFormat', 'JSON Format') as OutputFormat;
+            .get<OutputFormat>('outputFormat', DEFAULT_OUTPUT_FORMAT);
         const formattedStructure = StructureService.formatStructure(structure, outputFormat);
 
         await vscode.env.clipboard.writeText(formattedStructure);

@@ -24,10 +24,10 @@ export class WebviewManager {
             : `{
   "project": {
     "src": {
-      "index.js": null,
-      "styles.css": null
+      "index": "js",
+      "styles": "css"
     },
-    "README.md": null
+    "README": "md"
   }
 }`;
 
@@ -53,6 +53,14 @@ export class WebviewManager {
                     --footer-fg: var(--vscode-statusBar-foreground);
                     --example-popup-bg: var(--vscode-dropdown-background);
                     --example-popup-fg: var(--vscode-dropdown-foreground);
+                }
+                
+                .badge {
+                    display: inline-block;
+                    padding: 2px 8px;
+                    border-radius: 999px;
+                    font-size: 11px;
+                    border: 1px solid var(--vscode-panel-border);
                 }
 
                 body {
@@ -81,8 +89,9 @@ export class WebviewManager {
                     background: var(--header-bg);
                     color: var(--header-fg);
                     padding: 1rem;
-                    display: flex;
-                    justify-content: space-between;
+                    display: grid;
+                    grid-template-columns: 1fr auto auto;
+                    gap: 12px;
                     align-items: center;
                 }
 
@@ -130,12 +139,15 @@ export class WebviewManager {
                 }
 
                 .content {
-                    padding: 20px;
+                    padding: 16px 20px 20px;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
                 }
 
                 textarea {
                     width: calc(100% - 24px);
-                    height: 300px;
+                    height: 340px;
                     margin: 0;
                     padding: 12px;
                     border: 1px solid var(--vscode-input-border);
@@ -153,10 +165,28 @@ export class WebviewManager {
                     border-color: var(--vscode-focusBorder);
                 }
 
+                .preview {
+                    width: calc(100% - 24px);
+                    height: 340px;
+                    margin: 0;
+                    padding: 12px;
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 4px;
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: 13px;
+                    white-space: pre;
+                    overflow: auto;
+                    background: var(--container-bg);
+                    color: var(--container-fg);
+                }
+
                 footer {
                     padding: 16px;
                     text-align: right;
                     background: var(--footer-bg);
+                    display: flex;
+                    gap: 8px;
+                    justify-content: flex-end;
                 }
 
                 .submit-btn {
@@ -197,27 +227,97 @@ export class WebviewManager {
             <div class="container">
                 <header>
                     <span class="title">Paste Folder Structure (${formatChoice})</span>
+                    <span id="status" class="badge">Ready</span>
                     <button class="example-btn">
                         View Example
                         <div class="example-content">${example}</div>
                     </button>
                 </header>
                 <div class="content">
-                    <textarea 
-                        id="folderStructure" 
-                        placeholder="Paste your folder structure here..."
-                    ></textarea>
+                    <div>
+                        <textarea 
+                            id="folderStructure" 
+                            placeholder="Paste your folder structure here..."
+                            aria-label="Folder structure input"
+                        ></textarea>
+                    </div>
+                    <pre id="preview" class="preview" aria-label="Preview"></pre>
                 </div>
                 <footer>
-                    <button class="submit-btn" onclick="submit()">Submit</button>
+                    <button class="submit-btn" id="copyBtn" title="Copy preview">Copy Preview</button>
+                    <button class="submit-btn" id="clearBtn" title="Clear input">Clear</button>
+                    <span style="flex:1"></span>
+                    <button class="submit-btn" id="submitBtn">Create</button>
                 </footer>
             </div>
             <script>
                 const vscode = acquireVsCodeApi();
-                function submit() {
-                    const content = document.getElementById('folderStructure').value;
-                    vscode.postMessage({ command: 'submit', text: content });
+                const textarea = document.getElementById('folderStructure');
+                const statusEl = document.getElementById('status');
+                const previewEl = document.getElementById('preview');
+                const submitBtn = document.getElementById('submitBtn');
+                const copyBtn = document.getElementById('copyBtn');
+                const clearBtn = document.getElementById('clearBtn');
+
+                function renderStatus({ valid, invalidLines, errorMessage }) {
+                    if (errorMessage) {
+                        statusEl.textContent = 'Invalid';
+                        statusEl.style.color = 'var(--vscode-errorForeground)';
+                        statusEl.style.borderColor = 'var(--vscode-errorForeground)';
+                        return;
+                    }
+                    if (valid) {
+                        statusEl.textContent = 'Valid';
+                        statusEl.style.color = 'var(--vscode-editor-foreground)';
+                        statusEl.style.borderColor = 'var(--vscode-panel-border)';
+                    } else {
+                        statusEl.textContent = invalidLines.length ? ('Invalid: ' + invalidLines.join(', ')) : 'Invalid';
+                        statusEl.style.color = 'var(--vscode-errorForeground)';
+                        statusEl.style.borderColor = 'var(--vscode-errorForeground)';
+                    }
                 }
+
+                function requestValidation() {
+                    const content = textarea.value;
+                    vscode.postMessage({ command: 'validate', text: content });
+                }
+
+                textarea.addEventListener('input', debounce(requestValidation, 250));
+                submitBtn.addEventListener('click', () => {
+                    const content = textarea.value;
+                    vscode.postMessage({ command: 'submit', text: content });
+                });
+
+                copyBtn.addEventListener('click', async () => {
+                    const text = previewEl.textContent || '';
+                    if (!text) { return; }
+                    vscode.postMessage({ command: 'copyPreview', text });
+                });
+
+                clearBtn.addEventListener('click', () => {
+                    textarea.value = '';
+                    requestValidation();
+                    textarea.focus();
+                });
+
+                window.addEventListener('message', (event) => {
+                    const msg = event.data || {};
+                    if (msg.command === 'validationResult') {
+                        renderStatus(msg);
+                        previewEl.textContent = msg.preview || '';
+                    }
+                });
+
+                function debounce(fn, wait) {
+                    let t;
+                    return function() {
+                        clearTimeout(t);
+                        t = setTimeout(fn, wait);
+                    };
+                }
+
+                // initial validate to show empty/initial state
+                requestValidation();
             </script>
         </body>
         </html>`;
