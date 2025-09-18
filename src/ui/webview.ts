@@ -44,12 +44,10 @@ export class WebviewManager {
                 }
 
                 :root {
-                    /* Dark Theme Colors */
                     --bg-primary: #0d0d0f;
                     --bg-secondary: #1a1a1f;
                     --bg-tertiary: #212127;
                     --bg-elevated: #2a2a32;
-                    
                     --lavender-50: #f8f6fc;
                     --lavender-100: #ede7f5;
                     --lavender-200: #ddd0eb;
@@ -60,29 +58,23 @@ export class WebviewManager {
                     --lavender-700: #744691;
                     --lavender-800: #5f3a7a;
                     --lavender-900: #4d2f63;
-                    
                     --text-primary: #e8e8f0;
                     --text-secondary: #c4c4d6;
                     --text-tertiary: #a0a0b8;
                     --text-muted: #7c7c94;
                     --text-accent: #b08cc9;
-                    
                     --success: #4ade80;
                     --error: #f87171;
                     --warning: #fbbf24;
-                    
                     --border-light: #3a3a42;
                     --border-medium: #4a4a54;
                     --border-strong: #5a5a66;
                     --border-accent: #6b5b95;
-                    
                     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
                     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
                     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
                     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
                     --shadow-lavender: 0 4px 20px rgba(153, 102, 179, 0.15);
-                    
-                    /* Code Colors */
                     --code-bg: #1e1e24;
                     --code-border: #3a3a42;
                     --code-text: #d4d4d8;
@@ -93,17 +85,13 @@ export class WebviewManager {
                     --code-function: #60a5fa;
                     --code-operator: #f472b6;
                     --code-bracket: #a78bfa;
-
-                    /* Interactive Element Base Styles */
                     --interactive-bg: rgba(153, 102, 179, 0.15);
                     --interactive-border: var(--lavender-600);
                     --interactive-hover-bg: rgba(153, 102, 179, 0.25);
                     --interactive-hover-border: var(--lavender-500);
                 }
 
-                /* Light Theme - Solarized Light + Lavender */
                 :root[data-theme='light'] {
-                    /* Solarized Base Colors */
                     --solarized-base03: #002b36;
                     --solarized-base02: #073642;
                     --solarized-base01: #586e75;
@@ -112,8 +100,6 @@ export class WebviewManager {
                     --solarized-base1: #93a1a1;
                     --solarized-base2: #eee8d5;
                     --solarized-base3: #fdf6e3;
-                    
-                    /* Solarized Accents */
                     --solarized-yellow: #b58900;
                     --solarized-orange: #cb4b16;
                     --solarized-red: #dc322f;
@@ -122,14 +108,10 @@ export class WebviewManager {
                     --solarized-blue: #268bd2;
                     --solarized-cyan: #2aa198;
                     --solarized-green: #859900;
-
-                    /* Backgrounds */
                     --bg-primary: var(--solarized-base3);
                     --bg-secondary: var(--solarized-base2);
                     --bg-tertiary: #f5efe6;
                     --bg-elevated: #ffffff;
-
-                    /* Lavender Accents */
                     --lavender-50: #faf8ff;
                     --lavender-100: #f3f0ff;
                     --lavender-200: #e9e5ff;
@@ -140,33 +122,23 @@ export class WebviewManager {
                     --lavender-700: #7c3aed;
                     --lavender-800: #6d28d9;
                     --lavender-900: #5b21b6;
-
-                    /* Text Colors */
                     --text-primary: var(--solarized-base02);
                     --text-secondary: var(--solarized-base01);
                     --text-tertiary: var(--solarized-base00);
                     --text-muted: var(--solarized-base1);
                     --text-accent: var(--lavender-700);
-
-                    /* Status Colors - Fixed for light mode */
                     --success: #16a34a;
                     --error: #dc2626;
                     --warning: var(--solarized-yellow);
-
-                    /* Borders */
                     --border-light: #ede4d3;
                     --border-medium: #ddd2c1;
                     --border-strong: var(--solarized-base1);
                     --border-accent: var(--lavender-400);
-
-                    /* Shadows */
                     --shadow-sm: 0 1px 2px 0 rgba(0, 43, 54, 0.05);
                     --shadow-md: 0 4px 6px -1px rgba(0, 43, 54, 0.08), 0 2px 4px -2px rgba(0, 43, 54, 0.06);
                     --shadow-lg: 0 10px 15px -3px rgba(0, 43, 54, 0.08), 0 4px 6px -4px rgba(0, 43, 54, 0.06);
                     --shadow-xl: 0 20px 25px -5px rgba(0, 43, 54, 0.1), 0 8px 10px -6px rgba(0, 43, 54, 0.08);
                     --shadow-lavender: 0 4px 20px rgba(139, 92, 246, 0.1);
-
-                    /* Code Colors */
                     --code-bg: var(--solarized-base3);
                     --code-border: var(--solarized-base2);
                     --code-text: var(--solarized-base02);
@@ -177,8 +149,6 @@ export class WebviewManager {
                     --code-function: var(--solarized-blue);
                     --code-operator: var(--solarized-magenta);
                     --code-bracket: var(--lavender-600);
-
-                    /* Interactive Elements */
                     --interactive-bg: rgba(139, 92, 246, 0.1);
                     --interactive-border: var(--lavender-300);
                     --interactive-hover-bg: rgba(139, 92, 246, 0.2);
@@ -209,15 +179,12 @@ export class WebviewManager {
                     backdrop-filter: blur(10px);
                 }
 
-                /* HEADER FIXES START HERE */
                 header {
                     background: linear-gradient(135deg, var(--lavender-800) 0%, var(--lavender-900) 50%, #2a1f3d 100%);
                     color: white;
                     padding: 24px 28px;
                     border-bottom: 3px solid var(--border-accent);
                     position: relative;
-                    
-                    /* Fixed responsive layout */
                     display: flex;
                     flex-wrap: wrap;
                     align-items: center;
@@ -225,10 +192,15 @@ export class WebviewManager {
                     gap: 16px;
                 }
 
-                /* Light theme header - Fixed */
                 :root[data-theme='light'] header {
                     background: linear-gradient(135deg, var(--lavender-600) 0%, var(--lavender-700) 50%, var(--lavender-800) 100%);
                     color: white;
+                }
+
+                header {
+                    display: flex;
+                    gap: 16px;
+                    align-items: stretch;
                 }
 
                 header::before {
@@ -245,9 +217,7 @@ export class WebviewManager {
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    flex: 1;
-                    min-width: 0; /* Allow text to shrink */
-                }
+                } 
 
                 .title {
                     font-size: 1.5rem;
@@ -261,10 +231,10 @@ export class WebviewManager {
                     white-space: nowrap;
                 }
 
-                /* Fixed theme toggle button */
                 .icon-btn.theme-toggle {
                     width: 28px;
                     height: 28px;
+                    margin-top: 3px;
                     border-radius: 6px;
                     display: inline-flex;
                     align-items: center;
@@ -285,15 +255,6 @@ export class WebviewManager {
                     transform: translateY(-1px);
                 }
 
-                /* Fixed header controls container */
-                .header-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    flex-shrink: 0;
-                }
-
-                /* Fixed status badge */
                 .status-badge {
                     display: inline-flex;
                     align-items: center;
@@ -307,14 +268,11 @@ export class WebviewManager {
                     border: 2px solid transparent;
                     backdrop-filter: blur(10px);
                     white-space: nowrap;
-                    
-                    /* Default state */
                     background: rgba(255, 255, 255, 0.1);
                     color: white;
                     border-color: rgba(255, 255, 255, 0.2);
                 }
 
-                /* Status badge states - Fixed colors */
                 .status-badge.valid {
                     background: rgba(74, 222, 128, 0.2);
                     color: #4ade80;
@@ -333,7 +291,6 @@ export class WebviewManager {
                     border-color: #fbbf24;
                 }
 
-                /* Light theme status badges - Fixed */
                 :root[data-theme='light'] .status-badge.valid {
                     background: rgba(22, 163, 74, 0.15);
                     color: #16a34a;
@@ -360,7 +317,6 @@ export class WebviewManager {
                     flex-shrink: 0;
                 }
 
-                /* Fixed interactive button */
                 .interactive-btn {
                     background: rgba(255, 255, 255, 0.1);
                     color: white;
@@ -410,7 +366,6 @@ export class WebviewManager {
                     display: block;
                 }
 
-                /* MOBILE RESPONSIVE FIXES */
                 @media (max-width: 768px) {
                     body { 
                         padding: 16px; 
@@ -430,19 +385,11 @@ export class WebviewManager {
 
                     .header-title {
                         justify-content: center;
-                        order: 1;
                     }
                     
                     .title { 
                         font-size: 1.25rem;
                         text-align: center;
-                    }
-
-                    .header-controls {
-                        order: 2;
-                        justify-content: center;
-                        flex-wrap: wrap;
-                        gap: 10px;
                     }
                     
                     .status-badge,
@@ -454,7 +401,6 @@ export class WebviewManager {
                     }
                     
                     .icon-btn.theme-toggle {
-                        order: 0;
                         align-self: center;
                         margin-bottom: 8px;
                     }
@@ -469,18 +415,12 @@ export class WebviewManager {
                         font-size: 1.125rem;
                     }
                     
-                    .header-controls {
-                        flex-direction: column;
-                        width: 100%;
-                    }
-                    
                     .status-badge,
                     .interactive-btn {
                         width: 100%;
                         max-width: none;
                     }
                 }
-                /* HEADER FIXES END HERE */
 
                 .content {
                     padding: 32px;
@@ -580,6 +520,8 @@ export class WebviewManager {
 
                 .button-group {
                     display: flex;
+                    flex-direction: row; 
+                    flex-wrap: wrap;    
                     gap: 12px;
                     align-items: center;
                 }
@@ -678,18 +620,12 @@ export class WebviewManager {
                     }
                 }
 
-                @media (max-width: 600px) {
-                    .button-group { 
-                        flex-direction: column; 
-                        width: 100%;
-                    }
-                    
+                @media (max-width: 600px) {                
                     .btn { 
                         width: 100%; 
                     }
                 }
 
-                /* Thin custom scrollbars */
                 * {
                     scrollbar-width: thin;
                     scrollbar-color: var(--border-accent) transparent;
