@@ -4,7 +4,7 @@ import { ERROR_MESSAGES } from '../constants';
 import { StructureService } from '../services/structure';
 import { FileSystemService } from '../services/fileSystem';
 import { OutputFormat, WebviewMessage } from '../types';
-import { WebviewManager } from '../ui/webview';
+import { createStructureInputPanel } from '../ui/webview';
 
 const FORMAT_OPTIONS: OutputFormat[] = ['Plain Text Format', 'JSON Format'];
 
@@ -16,7 +16,7 @@ export async function createStructure(): Promise<void> {
             canSelectFolders: true,
             canSelectMany: false,
             defaultUri,
-            openLabel: 'Select target folder'
+            openLabel: 'Select target folder',
         });
 
         const resolvedPath = pick?.[0]?.fsPath;
@@ -24,20 +24,22 @@ export async function createStructure(): Promise<void> {
             throw new Error(ERROR_MESSAGES.TARGET_REQUIRED);
         }
 
-        const formatChoice = await vscode.window.showQuickPick(FORMAT_OPTIONS, {
+        const formatChoice = (await vscode.window.showQuickPick(FORMAT_OPTIONS, {
             placeHolder: 'Choose the format of the folder structure',
-        }) as OutputFormat;
+        })) as OutputFormat;
 
         if (!formatChoice) {
             return;
         }
 
-        const panel = WebviewManager.createStructureInputPanel(formatChoice);
+        const panel = createStructureInputPanel(formatChoice);
 
         panel.webview.onDidReceiveMessage(async (message: WebviewMessage | any) => {
             if (message.command === 'validate') {
                 if (formatChoice === 'Plain Text Format') {
-                    const { structure, invalidLines } = StructureService.parsePlainTextToStructure(message.text ?? '');
+                    const { structure, invalidLines } = StructureService.parsePlainTextToStructure(
+                        message.text ?? '',
+                    );
                     const preview = StructureService.formatAsTree(structure);
                     const hasContent = Object.keys(structure).length > 0;
                     panel.webview.postMessage({
@@ -45,7 +47,7 @@ export async function createStructure(): Promise<void> {
                         valid: invalidLines.length === 0 && hasContent,
                         invalidLines,
                         preview,
-                        errorMessage: hasContent ? undefined : 'Empty input or no valid lines.'
+                        errorMessage: hasContent ? undefined : 'Empty input or no valid lines.',
                     });
                 } else {
                     try {
@@ -57,7 +59,9 @@ export async function createStructure(): Promise<void> {
                             valid,
                             invalidLines: [],
                             preview,
-                            errorMessage: valid ? undefined : 'JSON structure must be nested objects with string file types.'
+                            errorMessage: valid
+                                ? undefined
+                                : 'JSON structure must be nested objects with string file types.',
                         });
                     } catch (e) {
                         panel.webview.postMessage({
@@ -65,7 +69,7 @@ export async function createStructure(): Promise<void> {
                             valid: false,
                             invalidLines: [],
                             preview: '',
-                            errorMessage: 'Invalid JSON: ' + (e as Error).message
+                            errorMessage: 'Invalid JSON: ' + (e as Error).message,
                         });
                     }
                 }
@@ -74,24 +78,31 @@ export async function createStructure(): Promise<void> {
                     // Determine existing targets and prompt for replacement
                     let targets: string[] = [];
                     if (formatChoice === 'Plain Text Format') {
-                        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(message.text ?? '');
+                        const { structure, invalidLines } =
+                            StructureService.parsePlainTextToStructure(message.text ?? '');
                         const hasContent = Object.keys(structure).length > 0;
                         if (invalidLines.length > 0 || !hasContent) {
-                            const detail = !hasContent ? 'Empty input' : `Invalid lines: ${invalidLines.join(', ')}`;
+                            const detail = !hasContent
+                                ? 'Empty input'
+                                : `Invalid lines: ${invalidLines.join(', ')}`;
                             const confirm = await vscode.window.showWarningMessage(
                                 `The input appears invalid (${detail}). Continue and create only recognized items?`,
                                 { modal: true },
                                 'Yes',
-                                'No'
+                                'No',
                             );
-                            if (confirm !== 'Yes') { return; }
+                            if (confirm !== 'Yes') {
+                                return;
+                            }
                         }
-                        targets = Object.keys(structure).map(k => k);
+                        targets = Object.keys(structure).map((k) => k);
                     } else {
                         try {
                             const obj = JSON.parse(message.text ?? '{}');
                             if (!StructureService.validateJsonStructure(obj)) {
-                                vscode.window.showErrorMessage('Invalid JSON structure. Please use nested objects and string file types for files.');
+                                vscode.window.showErrorMessage(
+                                    'Invalid JSON structure. Please use nested objects and string file types for files.',
+                                );
                                 return;
                             }
                             targets = Object.keys(obj);
@@ -115,23 +126,34 @@ export async function createStructure(): Promise<void> {
                             { modal: true },
                             'Replace',
                             'Skip',
-                            'Cancel'
+                            'Cancel',
                         );
-                        if (selection === 'Cancel' || !selection) { return; }
+                        if (selection === 'Cancel' || !selection) {
+                            return;
+                        }
                         if (selection === 'Replace') {
                             for (const name of existing) {
                                 const full = path.join(resolvedPath, name);
-                                await FileSystemService.delete(full, { recursive: true, useTrash: true });
+                                await FileSystemService.delete(full, {
+                                    recursive: true,
+                                    useTrash: true,
+                                });
                             }
                         }
                         // On 'Skip', continue without deleting and we won't overwrite existing files
                     }
 
-                    await StructureService.createStructure(resolvedPath, message.text, formatChoice);
+                    await StructureService.createStructure(
+                        resolvedPath,
+                        message.text,
+                        formatChoice,
+                    );
                     vscode.window.showInformationMessage('Project created successfully!');
                     panel.dispose();
                 } catch (error) {
-                    vscode.window.showErrorMessage(`Error processing folder structure: ${(error as Error).message}`);
+                    vscode.window.showErrorMessage(
+                        `Error processing folder structure: ${(error as Error).message}`,
+                    );
                 }
             } else if (message.command === 'copyPreview') {
                 try {

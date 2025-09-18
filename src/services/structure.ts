@@ -14,11 +14,15 @@ export class StructureService {
         const ig = ignore().add(ignoreRules);
         const folderName = path.basename(dirPath);
         return {
-            [folderName]: await this.buildStructure(dirPath, ig, dirPath)
+            [folderName]: await this.buildStructure(dirPath, ig, dirPath),
         };
     }
 
-    static async buildStructure(dirPath: string, ig: ReturnType<typeof ignore>, rootPath: string): Promise<FolderStructure> {
+    static async buildStructure(
+        dirPath: string,
+        ig: ReturnType<typeof ignore>,
+        rootPath: string,
+    ): Promise<FolderStructure> {
         const structure: FolderStructure = {};
         const entries = await FileSystemService.readdir(dirPath);
 
@@ -45,9 +49,8 @@ export class StructureService {
     }
 
     static formatStructure(structure: FolderStructure, format: OutputFormat): string {
-        const formatter = format === 'Plain Text Format'
-            ? new GitignestFormatter()
-            : new JsonFormatter();
+        const formatter =
+            format === 'Plain Text Format' ? new GitignestFormatter() : new JsonFormatter();
 
         return formatter.format(structure);
     }
@@ -56,7 +59,11 @@ export class StructureService {
         return new GitignestFormatter().format(structure);
     }
 
-    static async createStructure(basePath: string, content: string, format: OutputFormat): Promise<void> {
+    static async createStructure(
+        basePath: string,
+        content: string,
+        format: OutputFormat,
+    ): Promise<void> {
         if (!content.trim()) {
             throw new Error(ERROR_MESSAGES.EMPTY_STRUCTURE);
         }
@@ -67,7 +74,9 @@ export class StructureService {
             try {
                 const structure = JSON.parse(content);
                 if (!this.validateJsonStructure(structure)) {
-                    throw new Error('Invalid JSON structure: use nested objects for folders and string file types for files');
+                    throw new Error(
+                        'Invalid JSON structure: use nested objects for folders and string file types for files',
+                    );
                 }
                 await this.createFromJSON(basePath, structure);
             } catch (error) {
@@ -79,16 +88,20 @@ export class StructureService {
     private static async createFromPlainText(basePath: string, content: string): Promise<void> {
         const rawLines = content.split('\n');
         // Ignore the first line (header/title) regardless of its text
-        const lines = rawLines.slice(1)
-            .filter(line => line.trim())
-            .filter(line => !line.includes('Directory structure:'));
+        const lines = rawLines
+            .slice(1)
+            .filter((line) => line.trim())
+            .filter((line) => !line.includes('Directory structure:'));
 
         const pathStack: string[] = [];
         let skipped = 0;
 
         for (const line of lines) {
             const node = TreeParser.parseLine(line);
-            if (!node || !node.name) { skipped++; continue; }
+            if (!node || !node.name) {
+                skipped++;
+                continue;
+            }
 
             while (pathStack.length > node.level) {
                 pathStack.pop();
@@ -106,11 +119,16 @@ export class StructureService {
 
         if (skipped > 0) {
             // Inform user but do not fail the operation
-            vscode.window.showWarningMessage(`Some lines (${skipped}) were skipped due to unrecognized format.`);
+            vscode.window.showWarningMessage(
+                `Some lines (${skipped}) were skipped due to unrecognized format.`,
+            );
         }
     }
 
-    private static async createFromJSON(basePath: string, structure: FolderStructure): Promise<void> {
+    private static async createFromJSON(
+        basePath: string,
+        structure: FolderStructure,
+    ): Promise<void> {
         for (const [key, value] of Object.entries(structure)) {
             if (typeof value === 'string') {
                 const fileName = value === 'file' || value.trim() === '' ? key : `${key}.${value}`;
@@ -126,18 +144,25 @@ export class StructureService {
 
     static fileTypeFor(name: string): string {
         const ext = path.extname(name);
-        if (!ext) return 'file';
+        if (!ext) {
+            return 'file';
+        }
         return ext.replace(/^\./, '') || 'file';
     }
 
     static baseNameFor(name: string): string {
         const ext = path.extname(name);
-        if (!ext) return name;
+        if (!ext) {
+            return name;
+        }
         return name.slice(0, -ext.length);
     }
 
     // Validation helpers for webview
-    static parsePlainTextToStructure(content: string): { structure: FolderStructure; invalidLines: number[] } {
+    static parsePlainTextToStructure(content: string): {
+        structure: FolderStructure;
+        invalidLines: number[];
+    } {
         const lines = content.split('\n');
         const pathStack: string[] = [];
         const structure: FolderStructure = {};
@@ -147,7 +172,7 @@ export class StructureService {
         const getContext = (stack: string[]): FolderStructure => {
             let ctx = structure;
             for (const segment of stack) {
-                ctx[segment] = ctx[segment] ?? {} as FolderStructure;
+                ctx[segment] = ctx[segment] ?? ({} as FolderStructure);
                 ctx = ctx[segment] as FolderStructure;
             }
             return ctx;
@@ -155,8 +180,12 @@ export class StructureService {
 
         lines.forEach((line, idx) => {
             // Always ignore the very first line as header/title
-            if (idx === 0) { return; }
-            if (!line.trim() || /Directory structure:/i.test(line)) { return; }
+            if (idx === 0) {
+                return;
+            }
+            if (!line.trim() || /Directory structure:/i.test(line)) {
+                return;
+            }
             const node: TreeNode | null = TreeParser.parseLine(line);
             if (!node || !node.name) {
                 invalidLines.push(idx + 1);
@@ -176,7 +205,7 @@ export class StructureService {
                 }
                 pathStack.length = 0;
                 const ctx = getContext([]);
-                ctx[node.name] = ctx[node.name] ?? {} as FolderStructure;
+                ctx[node.name] = ctx[node.name] ?? ({} as FolderStructure);
                 pathStack.push(node.name);
                 return;
             }
@@ -188,10 +217,12 @@ export class StructureService {
                     return;
                 }
             }
-            while (pathStack.length > node.level) { pathStack.pop(); }
+            while (pathStack.length > node.level) {
+                pathStack.pop();
+            }
             const ctx = getContext(pathStack);
             if (node.isDirectory) {
-                ctx[node.name] = ctx[node.name] ?? {} as FolderStructure;
+                ctx[node.name] = ctx[node.name] ?? ({} as FolderStructure);
                 pathStack.push(node.name);
             } else {
                 const type = this.fileTypeFor(node.name);
@@ -205,12 +236,22 @@ export class StructureService {
     }
 
     static validateJsonStructure(obj: unknown): obj is FolderStructure {
-        if (obj === null || typeof obj !== 'object') return false;
+        if (obj === null || typeof obj !== 'object') {
+            return false;
+        }
         for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-            if (typeof k !== 'string') return false;
-            if (typeof v === 'string') continue; // file leaf
-            if (v === null || typeof v !== 'object') return false;
-            if (!this.validateJsonStructure(v)) return false;
+            if (typeof k !== 'string') {
+                return false;
+            }
+            if (typeof v === 'string') {
+                continue;
+            } // file leaf
+            if (v === null || typeof v !== 'object') {
+                return false;
+            }
+            if (!this.validateJsonStructure(v)) {
+                return false;
+            }
         }
         return true;
     }

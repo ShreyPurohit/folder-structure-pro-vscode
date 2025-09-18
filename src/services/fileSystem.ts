@@ -39,7 +39,9 @@ export class FileSystemService {
     static async writeFileIfAbsent(inputPath: string | vscode.Uri, content: string): Promise<void> {
         const uri = this.toUri(inputPath);
         const exists = await this.exists(uri);
-        if (exists) { return; } // do not overwrite existing files
+        if (exists) {
+            return;
+        } // do not overwrite existing files
         await this.writeFile(uri, content);
     }
 
@@ -57,8 +59,14 @@ export class FileSystemService {
         return entries.map(([name, type]) => ({ name, type }));
     }
 
-    static async delete(inputPath: string | vscode.Uri, opts: { recursive?: boolean; useTrash?: boolean } = { recursive: true, useTrash: true }): Promise<void> {
-        await vscode.workspace.fs.delete(this.toUri(inputPath), { recursive: opts.recursive ?? true, useTrash: opts.useTrash ?? true });
+    static async delete(
+        inputPath: string | vscode.Uri,
+        opts: { recursive?: boolean; useTrash?: boolean } = { recursive: true, useTrash: true },
+    ): Promise<void> {
+        await vscode.workspace.fs.delete(this.toUri(inputPath), {
+            recursive: opts.recursive ?? true,
+            useTrash: opts.useTrash ?? true,
+        });
     }
 }
 

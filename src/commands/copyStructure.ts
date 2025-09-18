@@ -20,14 +20,17 @@ export async function copyStructure(uri: vscode.Uri): Promise<void> {
         }
 
         const structure = await StructureService.getStructure(target.fsPath);
-        const outputFormat = vscode.workspace.getConfiguration('folderStructure')
+        const outputFormat = vscode.workspace
+            .getConfiguration('folderStructure')
             .get<OutputFormat>('outputFormat', DEFAULT_OUTPUT_FORMAT);
         const formattedStructure = StructureService.formatStructure(structure, outputFormat);
 
         await vscode.env.clipboard.writeText(formattedStructure);
         vscode.window.showInformationMessage('Folder structure copied to clipboard!');
     } catch (error) {
-        vscode.window.showErrorMessage(`Failed to copy folder structure: ${(error as Error).message}`);
+        vscode.window.showErrorMessage(
+            `Failed to copy folder structure: ${(error as Error).message}`,
+        );
     }
 }
 

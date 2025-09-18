@@ -15,9 +15,9 @@ export class GitignoreService {
             const gitignorePath = path.join(dirPath, '.gitignore');
             if (await FileSystemService.exists(gitignorePath)) {
                 const content = await FileSystemService.readFile(gitignorePath);
-                rules = rules.concat(content.split('\n').filter(line =>
-                    line.trim() && !line.startsWith('#')
-                ));
+                rules = rules.concat(
+                    content.split('\n').filter((line) => line.trim() && !line.startsWith('#')),
+                );
             }
         }
 
