@@ -25,7 +25,8 @@ export async function createStructure(): Promise<void> {
             throw new Error(ERROR_MESSAGES.TARGET_REQUIRED);
         }
 
-        const initialFormat = vscode.workspace.getConfiguration('folderStructure')
+        const initialFormat = vscode.workspace
+            .getConfiguration('folderStructure')
             .get<OutputFormat>('outputFormat', DEFAULT_OUTPUT_FORMAT);
 
         const panel = createStructureInputPanel(initialFormat);

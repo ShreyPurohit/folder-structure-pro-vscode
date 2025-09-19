@@ -7,14 +7,14 @@ export const getStyles = () => {
 };
 
 export const getExample = (formatChoice: string): string => {
-  return formatChoice === 'Plain Text Format'
-    ? `Directory structure:
+    return formatChoice === 'Plain Text Format'
+        ? `Directory structure:
 └── project/
     ├── src/
     │   ├── index.js
     │   └── styles.css
     └── README.md`
-    : `{
+        : `{
   "project": {
     "src": {
       "index": "js",
