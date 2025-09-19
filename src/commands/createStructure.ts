@@ -5,6 +5,7 @@ import { StructureService } from '../services/structure';
 import { FileSystemService } from '../services/fileSystem';
 import { OutputFormat, WebviewMessage } from '../types';
 import { createStructureInputPanel } from '../ui/webview';
+import { DEFAULT_OUTPUT_FORMAT } from '../constants';
 
 const FORMAT_OPTIONS: OutputFormat[] = ['Plain Text Format', 'JSON Format'];
 
@@ -24,19 +25,15 @@ export async function createStructure(): Promise<void> {
             throw new Error(ERROR_MESSAGES.TARGET_REQUIRED);
         }
 
-        const formatChoice = (await vscode.window.showQuickPick(FORMAT_OPTIONS, {
-            placeHolder: 'Choose the format of the folder structure',
-        })) as OutputFormat;
+        const initialFormat = vscode.workspace.getConfiguration('folderStructure')
+            .get<OutputFormat>('outputFormat', DEFAULT_OUTPUT_FORMAT);
 
-        if (!formatChoice) {
-            return;
-        }
-
-        const panel = createStructureInputPanel(formatChoice);
+        const panel = createStructureInputPanel(initialFormat);
 
         panel.webview.onDidReceiveMessage(async (message: WebviewMessage | any) => {
             if (message.command === 'validate') {
-                if (formatChoice === 'Plain Text Format') {
+                const currentFormat = (message.format as OutputFormat) || initialFormat;
+                if (currentFormat === 'Plain Text Format') {
                     const { structure, invalidLines } = StructureService.parsePlainTextToStructure(
                         message.text ?? '',
                     );
@@ -77,7 +74,8 @@ export async function createStructure(): Promise<void> {
                 try {
                     // Determine existing targets and prompt for replacement
                     let targets: string[] = [];
-                    if (formatChoice === 'Plain Text Format') {
+                    const currentFormat = (message.format as OutputFormat) || initialFormat;
+                    if (currentFormat === 'Plain Text Format') {
                         const { structure, invalidLines } =
                             StructureService.parsePlainTextToStructure(message.text ?? '');
                         const hasContent = Object.keys(structure).length > 0;
@@ -146,7 +144,7 @@ export async function createStructure(): Promise<void> {
                     await StructureService.createStructure(
                         resolvedPath,
                         message.text,
-                        formatChoice,
+                        currentFormat,
                     );
                     vscode.window.showInformationMessage('Project created successfully!');
                     panel.dispose();

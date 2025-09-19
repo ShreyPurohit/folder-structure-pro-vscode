@@ -1,5 +1,4 @@
 export const DEFAULT_OUTPUT_FORMAT = 'Plain Text Format';
-export const INDENTATION_SPACES = 4;
 export const DEFAULT_ENCODING = 'utf-8';
 
 // Tree drawing symbols used for the GitIngest-style formatter and parser
