@@ -18,22 +18,22 @@
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [✨ Features](#✨-features)
-- [⚡ Quick Start](#⚡-quick-start)
-- [⚙️ Settings](#️⚙️-settings)
-- [📖 How to Use](#📖-how-to-use)
-- [🎬 Live Previews](#🎬-live-previews)
-- [📄 Output Examples](#📄-output-examples)
-- [🔧 How It Works](#🔧-how-it-works)
-- [🛠️ Troubleshooting](#🛠️-troubleshooting)
-- [📜 License](#📜-license)
-- [💬 Contact](#💬-contact)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Settings](#settings)
+- [How to Use](#how-to-use)
+- [Live Previews](#live-previews)
+- [Output Examples](#output-examples)
+- [How It Works](#how-it-works)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## ✨ Features
+## Features
 
 <img src="./assets/folder_structure_pro.png" alt="Folder Structure Pro Features" style="border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
@@ -58,7 +58,7 @@
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## ⚡ Quick Start
+## Quick Start
 
 1. 📥 **Install** the extension from VS Code Marketplace
 2. 🖱️ **Right-click** any folder in Explorer
@@ -67,7 +67,7 @@
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 📖 How to Use
+## How to Use
 
 ### 📁 Copy Folder Structure
 
@@ -89,7 +89,7 @@
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## ⚙️ Settings
+## Settings
 
 Configure the extension to work exactly how you want:
 
@@ -103,7 +103,7 @@ Configure the extension to work exactly how you want:
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 🎬 Live Previews
+## Live Previews
 
 ### 🖱️ Context Menu Integration
 
@@ -125,7 +125,7 @@ Configure the extension to work exactly how you want:
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 📄 Output Examples
+## Output Examples
 
 ### 🗂️ JSON Format
 
@@ -173,7 +173,7 @@ Directory structure:
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 🔧 How It Works
+## How It Works
 
 ### 📁 Copy Folder Structure
 
@@ -196,7 +196,7 @@ Directory structure:
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### ❓ Common Issues & Solutions:
 
@@ -218,13 +218,13 @@ Directory structure:
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 📜 License
+## License
 
 MIT License — see [LICENSE](./LICENSE) for details
 
 <hr style="border: 2px solid black; width: 100%; " />
 
-## 💬 Contact
+## Contact
 
 🐛 **Found a bug?** 🚀 **Have a feature request?**
 
