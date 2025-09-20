@@ -46,18 +46,18 @@
       "explorer/context": [
         {
           "command": "extension.copyFolderStructure",
-          "when": "explorerResourceIsFolder",
-          "group": "FolderStructureProGroup"
+          "when": "resource",
+          "group": "5_folder-structure-pro"
         },
         {
           "command": "extension.createProjectFromStructure",
-          "when": "explorerResourceIsFolder",
-          "group": "FolderStructureProGroup"
+          "when": "resource",
+          "group": "5_folder-structure-pro"
         },
         {
           "command": "extension.copyFileName",
           "when": "resourceExtname",
-          "group": "6_copypath@-10"
+          "group": "5_folder-structure-pro"
         }
       ]
     },

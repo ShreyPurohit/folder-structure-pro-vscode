@@ -14,7 +14,7 @@ export const createStructureInputPanel = (formatChoice: string): vscode.WebviewP
         'folderStructureInput',
         'Folder Structure Input',
         vscode.ViewColumn.One,
-        { enableScripts: true },
+        { enableScripts: true, retainContextWhenHidden: true },
     );
 
     panel.webview.html = getWebviewContent(formatChoice);

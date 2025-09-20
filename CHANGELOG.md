@@ -4,7 +4,7 @@
 
 ### Added
 
-- Webview preview with live validation and non-selectable line numbers gutter
+- Webview preview with live validation
 - Replace/Skip/Cancel prompt when target items already exist (uses Trash for Replace)
 - Support for JSON file leaves as string file types (e.g., "route": "ts")
 - Safer, remote-ready filesystem via `vscode.workspace.fs`
