@@ -1,35 +1,72 @@
-import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { DEFAULT_ENCODING } from '../constants';
 
+type DirEntry = { name: string; type: vscode.FileType };
+
 export class FileSystemService {
-    static async exists(path: string): Promise<boolean> {
+    private static toUri(inputPath: string | vscode.Uri): vscode.Uri {
+        return inputPath instanceof vscode.Uri ? inputPath : vscode.Uri.file(inputPath);
+    }
+
+    static async exists(inputPath: string | vscode.Uri): Promise<boolean> {
         try {
-            await fs.promises.access(path);
+            await vscode.workspace.fs.stat(this.toUri(inputPath));
             return true;
         } catch {
             return false;
         }
     }
 
-    static async isDirectory(path: string): Promise<boolean> {
-        const stat = await fs.promises.stat(path);
-        return stat.isDirectory();
+    static async isDirectory(inputPath: string | vscode.Uri): Promise<boolean> {
+        try {
+            const stat = await vscode.workspace.fs.stat(this.toUri(inputPath));
+            return (stat.type & vscode.FileType.Directory) === vscode.FileType.Directory;
+        } catch {
+            return false;
+        }
     }
 
-    static async readFile(path: string): Promise<string> {
-        return fs.promises.readFile(path, DEFAULT_ENCODING);
+    static async readFile(inputPath: string | vscode.Uri): Promise<string> {
+        const data = await vscode.workspace.fs.readFile(this.toUri(inputPath));
+        return new TextDecoder(DEFAULT_ENCODING).decode(data);
     }
 
-    static async writeFile(path: string, content: string): Promise<void> {
-        return fs.promises.writeFile(path, content, DEFAULT_ENCODING);
+    static async writeFile(inputPath: string | vscode.Uri, content: string): Promise<void> {
+        const data = new TextEncoder().encode(content);
+        await vscode.workspace.fs.writeFile(this.toUri(inputPath), data);
     }
 
-    static async mkdir(path: string): Promise<void> {
-        await fs.promises.mkdir(path, { recursive: true });
+    static async writeFileIfAbsent(inputPath: string | vscode.Uri, content: string): Promise<void> {
+        const uri = this.toUri(inputPath);
+        const exists = await this.exists(uri);
+        if (exists) {
+            return;
+        } // do not overwrite existing files
+        await this.writeFile(uri, content);
     }
 
-    static async readdir(path: string): Promise<fs.Dirent[]> {
-        return fs.promises.readdir(path, { withFileTypes: true });
+    static async mkdir(inputPath: string | vscode.Uri): Promise<void> {
+        await vscode.workspace.fs.createDirectory(this.toUri(inputPath));
+    }
+
+    static async mkdirIfAbsent(inputPath: string | vscode.Uri): Promise<void> {
+        // createDirectory is idempotent in VS Code fs; this wrapper clarifies intent
+        await this.mkdir(inputPath);
+    }
+
+    static async readdir(inputPath: string | vscode.Uri): Promise<DirEntry[]> {
+        const entries = await vscode.workspace.fs.readDirectory(this.toUri(inputPath));
+        return entries.map(([name, type]) => ({ name, type }));
+    }
+
+    static async delete(
+        inputPath: string | vscode.Uri,
+        opts: { recursive?: boolean; useTrash?: boolean } = { recursive: true, useTrash: true },
+    ): Promise<void> {
+        await vscode.workspace.fs.delete(this.toUri(inputPath), {
+            recursive: opts.recursive ?? true,
+            useTrash: opts.useTrash ?? true,
+        });
     }
 }
 

@@ -7,7 +7,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('extension.copyFileName', copyFileName),
         vscode.commands.registerCommand('extension.copyFolderStructure', copyStructure),
-        vscode.commands.registerCommand('extension.createProjectFromStructure', createStructure)
+        vscode.commands.registerCommand('extension.createProjectFromStructure', createStructure),
     );
 }
 

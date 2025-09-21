@@ -3,7 +3,7 @@
   "displayName": "Folder Structure Pro",
   "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support, and quickly copy file names with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -13,6 +13,17 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": true
+  },
+  "galleryBanner": {
+    "color": "#0b1620",
+    "theme": "dark"
+  },
   "contributes": {
     "commands": [
       {
@@ -35,18 +46,18 @@
       "explorer/context": [
         {
           "command": "extension.copyFolderStructure",
-          "when": "explorerResourceIsFolder",
-          "group": "FolderStructureProGroup"
+          "when": "resource",
+          "group": "5_folder-structure-pro"
         },
         {
           "command": "extension.createProjectFromStructure",
-          "when": "explorerResourceIsFolder",
-          "group": "FolderStructureProGroup"
+          "when": "resource",
+          "group": "5_folder-structure-pro"
         },
         {
           "command": "extension.copyFileName",
           "when": "resourceExtname",
-          "group": "6_copypath@-10"
+          "group": "5_folder-structure-pro"
         }
       ]
     },
@@ -90,7 +101,9 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@types/node": "20.x",
@@ -99,7 +112,10 @@
     "@typescript-eslint/parser": "^8.7.0",
     "esbuild": "^0.24.0",
     "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
     "npm-run-all": "^4.1.5",
+    "prettier": "^3.3.3",
     "typescript": "^5.6.3"
   },
   "license": "MIT",
@@ -118,21 +134,21 @@
   ],
   "keywords": [
     "folder structure",
-    "copy folder",
+    "copy folder structure",
+    "create folder structure",
     "copy file name",
     "git ingest",
-    "create project",
-    "json format",
-    "plain text format",
+    "project scaffolding",
+    "json",
+    "plain text",
+    "tree",
     "gitignore",
-    "project creation",
-    "vs code extension",
-    "copy file name",
-    "file name clipboard",
-    "file management",
-    "file organization",
+    "clipboard",
     "explorer context menu",
-    "vscode productivity"
+    "productivity",
+    "developer tools",
+    "workspace fs",
+    "remote"
   ],
   "repository": {
     "type": "git",
