@@ -1,6 +1,12 @@
 # Change Log
 
-## [0.1.0] - 2025-09-16
+## [0.1.1] - 2025-09-22
+
+### Fixed
+
+- View Example dynamic handling
+
+## [0.1.0] - 2025-09-21
 
 ### Added
 

@@ -3,7 +3,7 @@
   "displayName": "Folder Structure Pro",
   "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support, and quickly copy file names with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "engines": {
     "vscode": "^1.54.0"
   },

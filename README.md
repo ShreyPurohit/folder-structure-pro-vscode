@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <strong>🚀 The ultimate VS Code extension for managing folder structures with ease!</strong>
+  <strong>🚀 The ultimate Extension for managing folder structures with ease!</strong>
 </p>
 
 <hr style="border: 2px solid black; width: 100%; " />
