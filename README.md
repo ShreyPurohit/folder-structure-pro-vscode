@@ -10,6 +10,9 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
     <img src="https://img.shields.io/visual-studio-marketplace/r/iamshreydxv.copy-folder-structure" alt="Ratings"/>
   </a>
+  <a href="https://github.com/sponsors/ShreyPurohit">
+    <img src="https://img.shields.io/github/sponsors/ShreyPurohit?style=social" alt="Sponsor" />
+  </a>
 </p>
 
 <p align="center">
