@@ -10,10 +10,13 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
     <img src="https://img.shields.io/visual-studio-marketplace/r/iamshreydxv.copy-folder-structure" alt="Ratings"/>
   </a>
+  <a href="https://github.com/sponsors/ShreyPurohit"> 
+    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ff69b4?style=flat-square&logo=github" alt="Sponsor me on GitHub" /> 
+  </a>
 </p>
 
 <p align="center">
-  <strong>🚀 The ultimate Extension for managing folder structures with ease!</strong>
+  <strong>🚀 Copy & create folder structures, file names and jump-ready line paths.</strong>
 </p>
 
 <hr style="border: 2px solid black; width: 100%; " />
@@ -56,6 +59,12 @@
 - ⚡ **One-Click Copy**: Quick file name copying to clipboard
 - 🎯 **Simple & Fast**: Right-click any file to copy its name
 
+### Copy Line Path
+
+- 📋 **Copy jump-ready `relative/path:line`** for VS Code Quick Open
+- ⚙️ **Configurable**: Optional `:column` and absolute path modes
+- ⌨️ **Keyboard Binding**: `Ctrl+Shift+T` / `CMD+k CMD+t` on Mac
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## Quick Start
@@ -87,6 +96,11 @@
 
 - 🖱️ Right-click any file → 📋 **"Copy File Name"**
 
+### 📋 Copy Line Path
+
+- 🖱️ Right-click inside the editor → 📋 **"Copy Line Path"**
+- 📝 Paste into Quick Open (`Ctrl+P` / `Cmd+P`) to jump directly to that line.
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## Settings
@@ -96,6 +110,8 @@ Configure the extension to work exactly how you want:
 - 📄 **outputFormat**: Choose between JSON Format or Plain Text Format
 - 🚫 **ignorePatterns**: Specify patterns to ignore when copying structures
 - 🙈 **respectGitignore**: Honor .gitignore rules (recommended: enabled)
+- 🧩 **includecolumn**: _(NEW!)_ Include column number in copied path:line
+- 🛣️ **useAbsolutePath**: _(NEW!)_ Use absolute paths instead of workspace-relative
 
 ### 🎛️ Settings Preview
 
@@ -122,6 +138,10 @@ Configure the extension to work exactly how you want:
 #### 🔗 With Git Ingest Integration
 
 <img src="./assets/usage_with_gitIngest.gif" alt="Git Ingest Integration Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+
+### 📋 Copy Line Path **(NEW!!)**
+
+<img src="./assets/copy_path_line.gif" alt="Copy Line Path Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 <hr style="border: 2px solid black; width: 100%; " />
 
@@ -171,6 +191,12 @@ Directory structure:
 - 📏 Consistent indentation (increases by one level each time)
 - ⚠️ Invalid lines are highlighted; confirmation required if errors exist
 
+### 📋 Copy Line Path
+
+- 📋 Copies `relative/path/to/file:line` (or absolute path if enabled)
+- `:column` can be appended if enabled in settings
+- `utils/animations/executionAnimations.ts:152:16`
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## How It Works
@@ -193,6 +219,13 @@ Directory structure:
 
 1. 🖱️ **Right-click** any file in Explorer
 2. 📋 **Copies** the file name directly to clipboard
+
+### 📋 Copy Line Path
+
+1. ⚙️ **Reads your settings** to determine column and path mode
+2. 🛣️ **Builds a path string** (relative or absolute) and normalizes separators to `/`
+3. 🔢 **Appends** `:line` (and `:column` when enabled) using 1-based positions
+4. 📋 **Copies** the result to the clipboard for Quick Open compatibility
 
 <hr style="border: 2px solid black; width: 100%; " />
 
@@ -237,3 +270,5 @@ Open an issue on our [GitHub repository](https://github.com/ShreyPurohit/folder-
 </p>
 
 > ⭐ If this extension helped you, please consider giving it a star on the [GitHub](https://github.com/ShreyPurohit/folder-structure-pro-vscode/) and marketplace!
+
+> ✨ Love this project? Sponsor me to help fuel more open-source work!
