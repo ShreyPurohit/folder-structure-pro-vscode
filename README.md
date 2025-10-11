@@ -55,6 +55,12 @@
 
 - ⚡ **One-Click Copy**: Quick file name copying to clipboard
 - 🎯 **Simple & Fast**: Right-click any file to copy its name
+### Copy Line Path
+
+
+- 📋 **Copy jump-ready `relative/path:line`** for VS Code Quick Open
+- ⚙️ **Configurable**: Optional `:column` and absolute path modes
+- ⌨️ **Keyboard Binding**: `Ctrl+Shift+T` / `CMD+k CMD+t` on Mac
 
 <hr style="border: 2px solid black; width: 100%; " />
 
@@ -87,6 +93,11 @@
 
 - 🖱️ Right-click any file → 📋 **"Copy File Name"**
 
+### 📋 Copy Line Path
+
+- 🖱️ Right-click inside the editor → 📋 **"Copy Line Path"**
+- 📝 Paste into Quick Open (`Ctrl+P` / `Cmd+P`) to jump directly to that line.
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## Settings
@@ -96,6 +107,8 @@ Configure the extension to work exactly how you want:
 - 📄 **outputFormat**: Choose between JSON Format or Plain Text Format
 - 🚫 **ignorePatterns**: Specify patterns to ignore when copying structures
 - 🙈 **respectGitignore**: Honor .gitignore rules (recommended: enabled)
+- 🧩 **includecolumn**: *(NEW!)* Include column number in copied path:line
+- 🛣️ **useAbsolutePath**: *(NEW!)* Use absolute paths instead of workspace-relative
 
 ### 🎛️ Settings Preview
 
@@ -122,6 +135,10 @@ Configure the extension to work exactly how you want:
 #### 🔗 With Git Ingest Integration
 
 <img src="./assets/usage_with_gitIngest.gif" alt="Git Ingest Integration Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+
+### 📋 Copy Line Path **(NEW!!)**
+
+<img src="./assets/copy_path_line.gif" alt="Copy Line Path Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 <hr style="border: 2px solid black; width: 100%; " />
 
@@ -171,6 +188,13 @@ Directory structure:
 - 📏 Consistent indentation (increases by one level each time)
 - ⚠️ Invalid lines are highlighted; confirmation required if errors exist
 
+
+### 📋 Copy Line Path
+
+- 📋 Copies `relative/path/to/file:line` (or absolute path if enabled)
+- `:column` can be appended if enabled in settings
+- `utils/animations/executionAnimations.ts:152:16`
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## How It Works
@@ -193,6 +217,13 @@ Directory structure:
 
 1. 🖱️ **Right-click** any file in Explorer
 2. 📋 **Copies** the file name directly to clipboard
+
+### 📋 Copy Line Path
+
+1. ⚙️ **Reads your settings** to determine column and path mode
+2. 🛣️ **Builds a path string** (relative or absolute) and normalizes separators to `/`
+3. 🔢 **Appends** `:line` (and `:column` when enabled) using 1-based positions
+4. 📋 **Copies** the result to the clipboard for Quick Open compatibility
 
 <hr style="border: 2px solid black; width: 100%; " />
 

@@ -3,7 +3,7 @@
   "displayName": "Folder Structure Pro",
   "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support, and quickly copy file names with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -25,6 +25,14 @@
     "theme": "dark"
   },
   "contributes": {
+    "keybindings": [
+      {
+        "command": "extension.copyLinePath",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+k cmd+t",
+        "when": "editorTextFocus && resourceScheme == file"
+      }
+    ],
     "commands": [
       {
         "command": "extension.copyFolderStructure",
@@ -40,6 +48,11 @@
         "command": "extension.copyFileName",
         "title": "Copy File Name",
         "category": "Explorer"
+      },
+      {
+        "command": "extension.copyLinePath",
+        "title": "Copy Line Path",
+        "category": "Editor"
       }
     ],
     "menus": {
@@ -57,6 +70,13 @@
         {
           "command": "extension.copyFileName",
           "when": "resourceExtname",
+          "group": "5_folder-structure-pro"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "extension.copyLinePath",
+          "when": "editorTextFocus && resourceScheme == file",
           "group": "5_folder-structure-pro"
         }
       ]
@@ -89,6 +109,16 @@
           "type": "boolean",
           "default": true,
           "description": "Whether to respect .gitignore patterns when copying folder structure"
+        },
+        "folderStructure.copyLine.includeColumn": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include column number when copying path (path:line:column)."
+        },
+        "folderStructure.copyLine.useAbsolutePath": {
+          "type": "boolean",
+          "default": false,
+          "description": "Copy absolute file path instead of workspace-relative path."
         }
       }
     }
@@ -137,6 +167,10 @@
     "copy folder structure",
     "create folder structure",
     "copy file name",
+    "copy line path",
+    "copy file path",
+    "copy file",
+    "line path",
     "git ingest",
     "project scaffolding",
     "json",

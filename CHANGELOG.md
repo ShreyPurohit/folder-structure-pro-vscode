@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.2.0] - 2025-10-09
+
+### Added
+
+- 📋 **Copy Line Path**: Right-click in the editor to copy `relative/path/to/file:line` (or absolute path if enabled). Optionally include `:column` if enabled in settings.
+- 🧩 New setting `includeColumn` to append column number in copied path:line
+- 🛣️ New setting `useAbsolutePath` to copy absolute paths instead of workspace
+
 ## [0.1.1] - 2025-09-22
 
 ### Fixed
