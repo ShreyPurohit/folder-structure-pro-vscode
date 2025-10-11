@@ -3,7 +3,9 @@ import * as vscode from 'vscode';
 export async function copyLinePath(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
-        vscode.window.showWarningMessage('No active editor. Open a file to copy its path and line.');
+        vscode.window.showWarningMessage(
+            'No active editor. Open a file to copy its path and line.',
+        );
         return;
     }
 
@@ -18,7 +20,9 @@ export async function copyLinePath(): Promise<void> {
     let pathStr: string;
     if (useAbsolutePath) {
         if (uri.scheme !== 'file') {
-            vscode.window.showWarningMessage('Absolute path is only available for files on disk. Falling back to relative path.');
+            vscode.window.showWarningMessage(
+                'Absolute path is only available for files on disk. Falling back to relative path.',
+            );
             // Fallback to relative
             pathStr = vscode.workspace.asRelativePath(uri, false);
         } else {

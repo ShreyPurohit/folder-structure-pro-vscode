@@ -55,8 +55,8 @@
 
 - ⚡ **One-Click Copy**: Quick file name copying to clipboard
 - 🎯 **Simple & Fast**: Right-click any file to copy its name
-### Copy Line Path
 
+### Copy Line Path
 
 - 📋 **Copy jump-ready `relative/path:line`** for VS Code Quick Open
 - ⚙️ **Configurable**: Optional `:column` and absolute path modes
@@ -107,8 +107,8 @@ Configure the extension to work exactly how you want:
 - 📄 **outputFormat**: Choose between JSON Format or Plain Text Format
 - 🚫 **ignorePatterns**: Specify patterns to ignore when copying structures
 - 🙈 **respectGitignore**: Honor .gitignore rules (recommended: enabled)
-- 🧩 **includecolumn**: *(NEW!)* Include column number in copied path:line
-- 🛣️ **useAbsolutePath**: *(NEW!)* Use absolute paths instead of workspace-relative
+- 🧩 **includecolumn**: _(NEW!)_ Include column number in copied path:line
+- 🛣️ **useAbsolutePath**: _(NEW!)_ Use absolute paths instead of workspace-relative
 
 ### 🎛️ Settings Preview
 
@@ -187,7 +187,6 @@ Directory structure:
 - 📁 Exactly one root directory ending with `/`
 - 📏 Consistent indentation (increases by one level each time)
 - ⚠️ Invalid lines are highlighted; confirmation required if errors exist
-
 
 ### 📋 Copy Line Path
 
