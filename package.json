@@ -1,7 +1,7 @@
 {
   "name": "copy-folder-structure",
   "displayName": "Folder Structure Pro",
-  "description": "Easily copy or create folder structures in JSON or plain text, with .gitignore and hidden file support, and quickly copy file names with a single click.",
+  "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
   "publisher": "iamshreydxv",
   "version": "0.2.0",
   "engines": {

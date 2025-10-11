@@ -10,13 +10,13 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
     <img src="https://img.shields.io/visual-studio-marketplace/r/iamshreydxv.copy-folder-structure" alt="Ratings"/>
   </a>
-  <a href="https://github.com/sponsors/ShreyPurohit">
-    <img src="https://img.shields.io/github/sponsors/ShreyPurohit?style=social" alt="Sponsor" />
+  <a href="https://github.com/sponsors/ShreyPurohit"> 
+    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ff69b4?style=flat-square&logo=github" alt="Sponsor me on GitHub" /> 
   </a>
 </p>
 
 <p align="center">
-  <strong>🚀 The ultimate Extension for managing folder structures with ease!</strong>
+  <strong>🚀 Copy & create folder structures, file names and jump-ready line paths.</strong>
 </p>
 
 <hr style="border: 2px solid black; width: 100%; " />
@@ -270,3 +270,5 @@ Open an issue on our [GitHub repository](https://github.com/ShreyPurohit/folder-
 </p>
 
 > ⭐ If this extension helped you, please consider giving it a star on the [GitHub](https://github.com/ShreyPurohit/folder-structure-pro-vscode/) and marketplace!
+
+> ✨ Love this project? Sponsor me to help fuel more open-source work!
