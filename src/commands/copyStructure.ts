@@ -19,7 +19,7 @@ export async function copyStructure(uri: vscode.Uri): Promise<void> {
             target = pick[0];
         }
 
-        const structure = await StructureService.getStructure(target.fsPath);
+        const structure = await StructureService.getStructure(target);
         const outputFormat = vscode.workspace
             .getConfiguration('folderStructure')
             .get<OutputFormat>('outputFormat', DEFAULT_OUTPUT_FORMAT);

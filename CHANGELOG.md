@@ -1,5 +1,15 @@
 # Change Log
 
+## [0.2.1] - 2026-04-27
+
+### Fixed
+
+- Remote SSH/provider compatibility for copy/create structure by keeping filesystem operations Uri-native end-to-end (no early `fsPath` conversion).
+- Plain Text multi-root parsing for service-style trees and root-level file entries.
+- Plain Text validation handling for decorative separator lines between root blocks.
+- Tree formatter root-level connector behavior (`├──` / `└──`) and spacing between root sections.
+- JSON structure support for `null` file leaves (e.g. `"Dockerfile": null`) in validation, preview, and creation.
+
 ## [0.2.0] - 2025-10-09
 
 ### Added
