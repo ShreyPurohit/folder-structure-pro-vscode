@@ -1,14 +1,14 @@
 <img src="./assets/banner.webp" alt="Folder Structure Pro" style="border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/iamshreydxv.copy-folder-structure" alt="Marketplace Version"/>
+  <a href="https://github.com/ShreyPurohit/folder-structure-pro-vscode/releases">
+    <img src="https://img.shields.io/github/last-commit/ShreyPurohit/folder-structure-pro-vscode" alt="Last Commit"/>
   </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
-    <img src="https://img.shields.io/visual-studio-marketplace/d/iamshreydxv.copy-folder-structure" alt="Downloads"/>
+  <a href="https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues">
+    <img src="https://img.shields.io/github/issues/ShreyPurohit/folder-structure-pro-vscode" alt="Open Issues"/>
   </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=iamshreydxv.copy-folder-structure">
-    <img src="https://img.shields.io/visual-studio-marketplace/r/iamshreydxv.copy-folder-structure" alt="Ratings"/>
+  <a href="https://github.com/ShreyPurohit/folder-structure-pro-vscode/stargazers">
+    <img src="https://img.shields.io/github/stars/ShreyPurohit/folder-structure-pro-vscode" alt="GitHub Stars"/>
   </a>
   <a href="https://github.com/sponsors/ShreyPurohit"> 
     <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ff69b4?style=flat-square&logo=github" alt="Sponsor me on GitHub" /> 

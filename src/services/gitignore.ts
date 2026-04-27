@@ -1,10 +1,9 @@
 import ignore from 'ignore';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { FileSystemService } from './fileSystem';
 
 export class GitignoreService {
-    static async loadRules(dirPath: string): Promise<string[]> {
+    static async loadRules(dirUri: vscode.Uri): Promise<string[]> {
         const config = vscode.workspace.getConfiguration('folderStructure');
         const ignorePatterns = config.get<string[]>('ignorePatterns', ['node_modules', '.*']);
         const respectGitignore = config.get<boolean>('respectGitignore', true);
@@ -12,9 +11,9 @@ export class GitignoreService {
         let rules = [...ignorePatterns];
 
         if (respectGitignore) {
-            const gitignorePath = path.join(dirPath, '.gitignore');
-            if (await FileSystemService.exists(gitignorePath)) {
-                const content = await FileSystemService.readFile(gitignorePath);
+            const gitignoreUri = vscode.Uri.joinPath(dirUri, '.gitignore');
+            if (await FileSystemService.exists(gitignoreUri)) {
+                const content = await FileSystemService.readFile(gitignoreUri);
                 rules = rules.concat(
                     content.split('\n').filter((line) => line.trim() && !line.startsWith('#')),
                 );

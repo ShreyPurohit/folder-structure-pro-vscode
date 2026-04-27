@@ -1,4 +1,3 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { ERROR_MESSAGES } from '../constants';
 import { StructureService } from '../services/structure';
@@ -6,8 +5,6 @@ import { FileSystemService } from '../services/fileSystem';
 import { OutputFormat, WebviewMessage } from '../types';
 import { createStructureInputPanel } from '../ui/webview';
 import { DEFAULT_OUTPUT_FORMAT } from '../constants';
-
-const FORMAT_OPTIONS: OutputFormat[] = ['Plain Text Format', 'JSON Format'];
 
 export async function createStructure(): Promise<void> {
     try {
@@ -20,8 +17,8 @@ export async function createStructure(): Promise<void> {
             openLabel: 'Select target folder',
         });
 
-        const resolvedPath = pick?.[0]?.fsPath;
-        if (!resolvedPath) {
+        const resolvedUri = pick?.[0];
+        if (!resolvedUri) {
             throw new Error(ERROR_MESSAGES.TARGET_REQUIRED);
         }
 
@@ -113,7 +110,7 @@ export async function createStructure(): Promise<void> {
 
                     const existing: string[] = [];
                     for (const name of targets) {
-                        const full = path.join(resolvedPath, name);
+                        const full = vscode.Uri.joinPath(resolvedUri, name);
                         if (await FileSystemService.exists(full)) {
                             existing.push(name);
                         }
@@ -132,7 +129,7 @@ export async function createStructure(): Promise<void> {
                         }
                         if (selection === 'Replace') {
                             for (const name of existing) {
-                                const full = path.join(resolvedPath, name);
+                                const full = vscode.Uri.joinPath(resolvedUri, name);
                                 await FileSystemService.delete(full, {
                                     recursive: true,
                                     useTrash: true,
@@ -143,7 +140,7 @@ export async function createStructure(): Promise<void> {
                     }
 
                     await StructureService.createStructure(
-                        resolvedPath,
+                        resolvedUri,
                         message.text,
                         currentFormat,
                     );

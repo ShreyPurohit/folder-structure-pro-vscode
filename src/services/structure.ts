@@ -9,26 +9,40 @@ import { GitignestFormatter, JsonFormatter } from './formatters';
 import { GitignoreService } from './gitignore';
 
 export class StructureService {
-    static async getStructure(dirPath: string): Promise<FolderStructure> {
-        const ignoreRules = await GitignoreService.loadRules(dirPath);
+    private static relativeFromRoot(rootUri: vscode.Uri, targetUri: vscode.Uri): string {
+        const root = rootUri.path.replace(/\/+$/, '');
+        const target = targetUri.path;
+        if (!target.startsWith(root)) {
+            return target.replace(/^\/+/, '');
+        }
+        return target.slice(root.length).replace(/^\/+/, '');
+    }
+
+    private static uriBaseName(uri: vscode.Uri): string {
+        const segments = uri.path.split('/').filter(Boolean);
+        return segments[segments.length - 1] ?? uri.path;
+    }
+
+    static async getStructure(dirUri: vscode.Uri): Promise<FolderStructure> {
+        const ignoreRules = await GitignoreService.loadRules(dirUri);
         const ig = ignore().add(ignoreRules);
-        const folderName = path.basename(dirPath);
+        const folderName = this.uriBaseName(dirUri);
         return {
-            [folderName]: await this.buildStructure(dirPath, ig, dirPath),
+            [folderName]: await this.buildStructure(dirUri, ig, dirUri),
         };
     }
 
     static async buildStructure(
-        dirPath: string,
+        dirUri: vscode.Uri,
         ig: ReturnType<typeof ignore>,
-        rootPath: string,
+        rootUri: vscode.Uri,
     ): Promise<FolderStructure> {
         const structure: FolderStructure = {};
-        const entries = await FileSystemService.readdir(dirPath);
+        const entries = await FileSystemService.readdir(dirUri);
 
         for (const entry of entries) {
-            const fullPath = path.join(dirPath, entry.name);
-            const relFromRoot = path.relative(rootPath, fullPath);
+            const fullUri = vscode.Uri.joinPath(dirUri, entry.name);
+            const relFromRoot = this.relativeFromRoot(rootUri, fullUri);
 
             if (entry.name.startsWith('.') || ig.ignores(relFromRoot)) {
                 continue;
@@ -36,7 +50,7 @@ export class StructureService {
 
             const isDir = (entry.type & vscode.FileType.Directory) === vscode.FileType.Directory;
             if (isDir) {
-                structure[entry.name] = await this.buildStructure(fullPath, ig, rootPath);
+                structure[entry.name] = await this.buildStructure(fullUri, ig, rootUri);
             } else {
                 const ext = this.fileTypeFor(entry.name);
                 const base = this.baseNameFor(entry.name);
@@ -60,7 +74,7 @@ export class StructureService {
     }
 
     static async createStructure(
-        basePath: string,
+        baseUri: vscode.Uri,
         content: string,
         format: OutputFormat,
     ): Promise<void> {
@@ -69,7 +83,7 @@ export class StructureService {
         }
 
         if (format === 'Plain Text Format') {
-            await this.createFromPlainText(basePath, content);
+            await this.createFromPlainText(baseUri, content);
         } else {
             try {
                 const structure = JSON.parse(content);
@@ -78,14 +92,14 @@ export class StructureService {
                         'Invalid JSON structure: use nested objects for folders and string file types for files',
                     );
                 }
-                await this.createFromJSON(basePath, structure);
+                await this.createFromJSON(baseUri, structure);
             } catch (error) {
                 throw new Error('Invalid JSON format');
             }
         }
     }
 
-    private static async createFromPlainText(basePath: string, content: string): Promise<void> {
+    private static async createFromPlainText(baseUri: vscode.Uri, content: string): Promise<void> {
         const rawLines = content.split('\n');
         // Ignore the first line (header/title) regardless of its text
         const lines = rawLines
@@ -107,7 +121,7 @@ export class StructureService {
                 pathStack.pop();
             }
 
-            const fullPath = path.join(basePath, ...pathStack, node.name);
+            const fullPath = vscode.Uri.joinPath(baseUri, ...pathStack, node.name);
 
             if (node.isDirectory) {
                 await FileSystemService.mkdirIfAbsent(fullPath);
@@ -126,16 +140,16 @@ export class StructureService {
     }
 
     private static async createFromJSON(
-        basePath: string,
+        baseUri: vscode.Uri,
         structure: FolderStructure,
     ): Promise<void> {
         for (const [key, value] of Object.entries(structure)) {
             if (typeof value === 'string') {
                 const fileName = value === 'file' || value.trim() === '' ? key : `${key}.${value}`;
-                const fullPath = path.join(basePath, fileName);
+                const fullPath = vscode.Uri.joinPath(baseUri, fileName);
                 await FileSystemService.writeFileIfAbsent(fullPath, '');
             } else {
-                const dirPath = path.join(basePath, key);
+                const dirPath = vscode.Uri.joinPath(baseUri, key);
                 await FileSystemService.mkdirIfAbsent(dirPath);
                 await this.createFromJSON(dirPath, value);
             }

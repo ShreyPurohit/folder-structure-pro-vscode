@@ -3,7 +3,7 @@
   "displayName": "Folder Structure Pro",
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "engines": {
     "vscode": "^1.54.0"
   },
