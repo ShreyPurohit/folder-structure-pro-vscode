@@ -54,8 +54,8 @@ export class StructureService {
             } else {
                 const ext = this.fileTypeFor(entry.name);
                 const base = this.baseNameFor(entry.name);
-                const key = structure[base] === undefined ? base : entry.name; // avoid collision
-                structure[key] = ext;
+                const existing = structure[base] as string[] | undefined;
+                structure[base] = existing === undefined ? [ext] : [...existing, ext];
             }
         }
 
@@ -144,10 +144,13 @@ export class StructureService {
         structure: FolderStructure,
     ): Promise<void> {
         for (const [key, value] of Object.entries(structure)) {
-            if (typeof value === 'string') {
-                const fileName = value === 'file' || value.trim() === '' ? key : `${key}.${value}`;
-                const fullPath = vscode.Uri.joinPath(baseUri, fileName);
-                await FileSystemService.writeFileIfAbsent(fullPath, '');
+            if (Array.isArray(value)) {
+                const uniqueTypes = Array.from(new Set(value));
+                for (const val of uniqueTypes) {
+                    const fileName = val === 'file' || val.trim() === '' ? key : `${key}.${val}`;
+                    const fullPath = vscode.Uri.joinPath(baseUri, fileName);
+                    await FileSystemService.writeFileIfAbsent(fullPath, '');
+                }
             } else {
                 const dirPath = vscode.Uri.joinPath(baseUri, key);
                 await FileSystemService.mkdirIfAbsent(dirPath);
@@ -241,8 +244,8 @@ export class StructureService {
             } else {
                 const type = this.fileTypeFor(node.name);
                 const base = this.baseNameFor(node.name);
-                const key = (ctx as any)[base] === undefined ? base : node.name;
-                ctx[key] = type;
+                const existing = ctx[base] as string[] | undefined;
+                ctx[base] = existing === undefined ? [base] : [...existing, type];
             }
         });
 

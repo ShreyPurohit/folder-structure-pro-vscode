@@ -1,7 +1,7 @@
 export interface FolderStructure {
     // key: name
     // value: nested FolderStructure for directories, or string file type (e.g., "ts", "css") for files
-    [key: string]: FolderStructure | string;
+    [key: string]: FolderStructure | string[];
 }
 
 export type OutputFormat = 'Plain Text Format' | 'JSON Format';
