@@ -42,7 +42,7 @@
 
 ### 📁 Copy Folder Structure
 
-- 🎯 **Two Output Formats**: JSON & Plain Text (GitIngest-style tree)
+- 🎯 **Two Output Formats**: JSON & Plain Text
 - 🖱️ **Right-Click Integration**: Easy access from Explorer context menu
 - 🙈 **Respects .gitignore**: Automatically excludes ignored files
 - ⚡ **Smart Filtering**: Skips node_modules and hidden files
