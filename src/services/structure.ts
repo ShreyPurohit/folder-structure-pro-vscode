@@ -54,8 +54,13 @@ export class StructureService {
             } else {
                 const ext = this.fileTypeFor(entry.name);
                 const base = this.baseNameFor(entry.name);
-                const existing = structure[base] as string[] | undefined;
-                structure[base] = existing === undefined ? [ext] : [...existing, ext];
+                const existing = structure[base] as string[] | string | undefined;
+                structure[base] =
+                    existing === undefined
+                        ? ext
+                        : Array.isArray(existing)
+                          ? [...existing, ext]
+                          : [existing, ext];
             }
         }
 
@@ -144,8 +149,8 @@ export class StructureService {
         structure: FolderStructure,
     ): Promise<void> {
         for (const [key, value] of Object.entries(structure)) {
-            if (Array.isArray(value)) {
-                const uniqueTypes = Array.from(new Set(value));
+            if (Array.isArray(value) || typeof value === 'string') {
+                const uniqueTypes = Array.from(new Set(Array.isArray(value) ? value : [value]));
                 for (const val of uniqueTypes) {
                     const fileName = val === 'file' || val.trim() === '' ? key : `${key}.${val}`;
                     const fullPath = vscode.Uri.joinPath(baseUri, fileName);
@@ -244,8 +249,13 @@ export class StructureService {
             } else {
                 const type = this.fileTypeFor(node.name);
                 const base = this.baseNameFor(node.name);
-                const existing = ctx[base] as string[] | undefined;
-                ctx[base] = existing === undefined ? [base] : [...existing, type];
+                const existing = ctx[base] as string[] | string | undefined;
+                ctx[base] =
+                    existing === undefined
+                        ? type
+                        : Array.isArray(existing)
+                          ? [...existing, type]
+                          : [existing, type];
             }
         });
 

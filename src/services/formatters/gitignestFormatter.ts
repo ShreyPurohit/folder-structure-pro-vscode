@@ -22,7 +22,7 @@ export class GitignestFormatter extends BaseFormatter {
                 if (isDir) {
                     displayName = `${name}/`;
                 } else {
-                    for (const val of Array.isArray(value) ? value : []) {
+                    for (const val of Array.isArray(value) ? value : [value]) {
                         names.push(val === 'file' || val.trim() === '' ? name : `${name}.${val}`);
                     }
                 }
