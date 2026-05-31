@@ -1,7 +1,7 @@
 export const DEFAULT_OUTPUT_FORMAT = 'Plain Text Format';
 export const DEFAULT_ENCODING = 'utf-8';
 
-// Tree drawing symbols used for the GitIngest-style formatter and parser
+// Tree drawing symbols used for the Plain Text-style formatter and parser
 export const TREE_SYMBOLS = {
     VERTICAL: '│', // vertical guide
     BRANCH: '├── ', // branch connector (with trailing space)

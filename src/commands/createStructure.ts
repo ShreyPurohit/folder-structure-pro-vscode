@@ -56,7 +56,7 @@ export async function createStructure(): Promise<void> {
                             preview,
                             errorMessage: valid
                                 ? undefined
-                                : 'JSON structure must be nested objects with string file types.',
+                                : 'JSON structure must be nested objects with string or string[] file types.',
                         });
                     } catch (e) {
                         panel.webview.postMessage({
@@ -97,7 +97,7 @@ export async function createStructure(): Promise<void> {
                             const obj = JSON.parse(message.text ?? '{}');
                             if (!StructureService.validateJsonStructure(obj)) {
                                 vscode.window.showErrorMessage(
-                                    'Invalid JSON structure. Please use nested objects and string file types for files.',
+                                    'Invalid JSON structure. Please use nested objects and string or string[] file types for files.',
                                 );
                                 return;
                             }

@@ -1,5 +1,22 @@
 # Change Log
 
+## [0.2.2] - 2026-04-27
+
+### Added
+
+- Support for multiple files with the same base name and different extensions in both Plain Text and JSON formats (e.g. `package.json` + `package.lock` represented as `"package": ["json", "lock"]`).
+
+### Changed
+
+- Introduced typed folder-structure helpers (`FileLeaf`, `isDirectoryNode`, `isFileLeaf`, `mergeFileExtension`) for safer parsing, validation, formatting, and creation.
+
+### Fixed
+
+- JSON validation now accepts `string[]` file leaves (previously rejected valid multi-extension JSON).
+- Plain Text preview formatting for multi-extension entries now renders each file as its own tree line with correct connectors.
+- Restored multi-root Plain Text parsing and decorative separator-line tolerance (`│`) without false invalid-line errors.
+- JSON creation deduplicates repeated extensions and safely handles extensionless/null file leaves.
+
 ## [0.2.1] - 2026-04-27
 
 ### Fixed

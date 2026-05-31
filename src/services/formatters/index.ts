@@ -1,5 +1,5 @@
 export * from './baseFormatter';
-export * from './gitignestFormatter';
+export * from './plainTextFormatter';
 export * from './jsonFormatter';
 
 /*

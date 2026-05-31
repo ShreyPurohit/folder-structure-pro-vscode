@@ -3,9 +3,15 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { ERROR_MESSAGES } from '../constants';
 import { FolderStructure, OutputFormat, TreeNode } from '../types';
+import {
+    isDirectoryNode,
+    isFileLeaf,
+    mergeFileExtension,
+    normalizeFileLeafExtensions,
+} from '../utils/folderStructure';
 import { TreeParser } from '../utils/parser';
 import { FileSystemService } from './fileSystem';
-import { GitignestFormatter, JsonFormatter } from './formatters';
+import { PlainTextFormatter, JsonFormatter } from './formatters';
 import { GitignoreService } from './gitignore';
 
 export class StructureService {
@@ -54,8 +60,10 @@ export class StructureService {
             } else {
                 const ext = this.fileTypeFor(entry.name);
                 const base = this.baseNameFor(entry.name);
-                const key = structure[base] === undefined ? base : entry.name; // avoid collision
-                structure[key] = ext;
+                structure[base] = mergeFileExtension(
+                    isFileLeaf(structure[base]) ? structure[base] : undefined,
+                    ext,
+                );
             }
         }
 
@@ -64,13 +72,13 @@ export class StructureService {
 
     static formatStructure(structure: FolderStructure, format: OutputFormat): string {
         const formatter =
-            format === 'Plain Text Format' ? new GitignestFormatter() : new JsonFormatter();
+            format === 'Plain Text Format' ? new PlainTextFormatter() : new JsonFormatter();
 
         return formatter.format(structure);
     }
 
     static formatAsTree(structure: FolderStructure): string {
-        return new GitignestFormatter().format(structure);
+        return new PlainTextFormatter().format(structure);
     }
 
     static async createStructure(
@@ -144,14 +152,20 @@ export class StructureService {
         structure: FolderStructure,
     ): Promise<void> {
         for (const [key, value] of Object.entries(structure)) {
-            if (typeof value === 'string') {
-                const fileName = value === 'file' || value.trim() === '' ? key : `${key}.${value}`;
-                const fullPath = vscode.Uri.joinPath(baseUri, fileName);
-                await FileSystemService.writeFileIfAbsent(fullPath, '');
-            } else {
+            if (isDirectoryNode(value)) {
                 const dirPath = vscode.Uri.joinPath(baseUri, key);
                 await FileSystemService.mkdirIfAbsent(dirPath);
                 await this.createFromJSON(dirPath, value);
+                continue;
+            }
+            if (!isFileLeaf(value)) {
+                continue;
+            }
+            const uniqueExtensions = Array.from(new Set(normalizeFileLeafExtensions(value)));
+            for (const extension of uniqueExtensions) {
+                const fileName = extension === 'file' ? key : `${key}.${extension}`;
+                const fullPath = vscode.Uri.joinPath(baseUri, fileName);
+                await FileSystemService.writeFileIfAbsent(fullPath, '');
             }
         }
     }
@@ -172,6 +186,12 @@ export class StructureService {
         return name.slice(0, -ext.length);
     }
 
+    private static setFileExtension(ctx: FolderStructure, base: string, extension: string): void {
+        const current = ctx[base];
+        const currentLeaf = isFileLeaf(current) ? current : undefined;
+        ctx[base] = mergeFileExtension(currentLeaf, extension);
+    }
+
     // Validation helpers for webview
     static parsePlainTextToStructure(content: string): {
         structure: FolderStructure;
@@ -181,19 +201,15 @@ export class StructureService {
         const pathStack: string[] = [];
         const structure: FolderStructure = {};
         const invalidLines: number[] = [];
-        let rootSeen = 0;
 
-        const getContext = (stack: string[]): FolderStructure => {
-            let ctx = structure;
-            for (const segment of stack) {
-                ctx[segment] = ctx[segment] ?? ({} as FolderStructure);
-                ctx = ctx[segment] as FolderStructure;
-            }
-            return ctx;
-        };
+        const getContext = (stack: string[]): FolderStructure =>
+            stack.reduce<FolderStructure>((ctx, segment) => {
+                const next = (ctx[segment] ?? {}) as FolderStructure;
+                ctx[segment] = next;
+                return next;
+            }, structure);
 
         lines.forEach((line, idx) => {
-            // Always ignore the very first line as header/title
             if (idx === 0) {
                 return;
             }
@@ -202,29 +218,27 @@ export class StructureService {
             }
             const node: TreeNode | null = TreeParser.parseLine(line);
             if (!node || !node.name) {
-                invalidLines.push(idx + 1);
+                const hasConnector = /├|└|\|--|`--/.test(line);
+                if (hasConnector) {
+                    invalidLines.push(idx + 1);
+                }
                 return;
             }
 
             if (node.level === 0) {
-                // enforce exactly one root, and it must be a directory
-                if (!node.isDirectory) {
-                    invalidLines.push(idx + 1);
-                    return;
-                }
-                rootSeen++;
-                if (rootSeen > 1) {
-                    invalidLines.push(idx + 1);
-                    return;
-                }
                 pathStack.length = 0;
                 const ctx = getContext([]);
-                ctx[node.name] = ctx[node.name] ?? ({} as FolderStructure);
-                pathStack.push(node.name);
+                if (node.isDirectory) {
+                    ctx[node.name] = ctx[node.name] ?? {};
+                    pathStack.push(node.name);
+                } else {
+                    const type = this.fileTypeFor(node.name);
+                    const base = this.baseNameFor(node.name);
+                    this.setFileExtension(ctx, base, type);
+                }
                 return;
             }
 
-            // going deeper must be exactly +1 level
             if (node.level > pathStack.length) {
                 if (node.level !== pathStack.length + 1) {
                     invalidLines.push(idx + 1);
@@ -236,13 +250,12 @@ export class StructureService {
             }
             const ctx = getContext(pathStack);
             if (node.isDirectory) {
-                ctx[node.name] = ctx[node.name] ?? ({} as FolderStructure);
+                ctx[node.name] = ctx[node.name] ?? {};
                 pathStack.push(node.name);
             } else {
                 const type = this.fileTypeFor(node.name);
                 const base = this.baseNameFor(node.name);
-                const key = (ctx as any)[base] === undefined ? base : node.name;
-                ctx[key] = type;
+                this.setFileExtension(ctx, base, type);
             }
         });
 
@@ -250,18 +263,24 @@ export class StructureService {
     }
 
     static validateJsonStructure(obj: unknown): obj is FolderStructure {
-        if (obj === null || typeof obj !== 'object') {
+        if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
             return false;
         }
         for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
             if (typeof k !== 'string') {
                 return false;
             }
-            if (typeof v === 'string') {
+            if (typeof v === 'string' || v === null) {
                 continue;
-            } // file leaf
-            if (v === null || typeof v !== 'object') {
-                return false;
+            }
+            if (Array.isArray(v)) {
+                if (v.length === 0) {
+                    return false;
+                }
+                if (!v.every((item) => typeof item === 'string' || item === null)) {
+                    return false;
+                }
+                continue;
             }
             if (!this.validateJsonStructure(v)) {
                 return false;
