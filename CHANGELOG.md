@@ -1,5 +1,15 @@
 # Change Log
 
+## [0.2.3] - 2026-08-03
+
+### Added
+
+- **Copy Folder Structure As...** submenu in the Explorer context menu with **Plain Text** and **JSON** options for one-off format selection.
+
+### Changed
+
+- Removed the standalone **Copy Folder Structure** Explorer menu item; use **Copy Folder Structure As** to pick a format directly.
+
 ## [0.2.2] - 2026-04-27
 
 ### Added
@@ -73,5 +83,3 @@
     - Example Preview
     - Updated Preview Mode
 - v0.6 Added ignorePatterns in vscode settings
-
-## [Unreleased]

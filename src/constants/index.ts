@@ -1,4 +1,6 @@
-export const DEFAULT_OUTPUT_FORMAT = 'Plain Text Format';
+export const PLAIN_TEXT_OUTPUT_FORMAT = 'Plain Text Format';
+export const JSON_OUTPUT_FORMAT = 'JSON Format';
+export const DEFAULT_OUTPUT_FORMAT = PLAIN_TEXT_OUTPUT_FORMAT;
 export const DEFAULT_ENCODING = 'utf-8';
 
 // Tree drawing symbols used for the Plain Text-style formatter and parser
