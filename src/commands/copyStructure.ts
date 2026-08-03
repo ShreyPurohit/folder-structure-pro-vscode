@@ -1,9 +1,5 @@
 import * as vscode from 'vscode';
-import {
-    ERROR_MESSAGES,
-    JSON_OUTPUT_FORMAT,
-    PLAIN_TEXT_OUTPUT_FORMAT,
-} from '../constants';
+import { ERROR_MESSAGES, JSON_OUTPUT_FORMAT, PLAIN_TEXT_OUTPUT_FORMAT } from '../constants';
 import { FileSystemService } from '../services/fileSystem';
 import { StructureService } from '../services/structure';
 import { OutputFormat } from '../types';

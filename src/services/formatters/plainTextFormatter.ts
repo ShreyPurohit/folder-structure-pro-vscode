@@ -39,9 +39,7 @@ export class PlainTextFormatter extends BaseFormatter {
                   : `${TREE_SYMBOLS.VERTICAL}${TREE_SYMBOLS.INDENT.slice(1)}`);
         const nested = this.formatStructure(value, childPrefix);
         const trailingNewline = isRoot && !isLastEntry ? '\n' : '';
-        return nested
-            ? `${line}\n${nested}${trailingNewline}`
-            : `${line}${trailingNewline}`;
+        return nested ? `${line}\n${nested}${trailingNewline}` : `${line}${trailingNewline}`;
     }
 
     private formatFileLeafEntry(
