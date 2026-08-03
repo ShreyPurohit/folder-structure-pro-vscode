@@ -45,4 +45,29 @@ describe('formatters', () => {
         expect(output).toContain('\n\n');
         expect(output).toContain('service-b/');
     });
+
+    it('does not add blank lines after empty directories', () => {
+        const structure: FolderStructure = {
+            docs: {
+                archive: {},
+                assets: {
+                    diagrams: {},
+                    icons: {},
+                    images: {},
+                },
+                'meeting-notes': {},
+                index: 'md',
+            },
+        };
+
+        const output = new PlainTextFormatter().format(structure);
+        expect(output).not.toMatch(/archive\/\n\s*\n/);
+        expect(output).not.toMatch(/diagrams\/\n\s*\n/);
+        expect(output).not.toMatch(/meeting-notes\/\n\s*\n/);
+        expect(output).toContain('├── archive/');
+        expect(output).toContain('├── assets/');
+        expect(output).toContain('│   ├── diagrams/');
+        expect(output).toContain('├── meeting-notes/');
+        expect(output).toContain('└── index.md');
+    });
 });

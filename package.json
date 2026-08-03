@@ -3,7 +3,7 @@
   "displayName": "Folder Structure Pro",
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
   "publisher": "iamshreydxv",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -35,8 +35,13 @@
     ],
     "commands": [
       {
-        "command": "extension.copyFolderStructure",
-        "title": "Copy Folder Structure",
+        "command": "extension.copyFolderStructureAsPlainText",
+        "title": "Plain Text",
+        "category": "Explorer"
+      },
+      {
+        "command": "extension.copyFolderStructureAsJson",
+        "title": "JSON",
         "category": "Explorer"
       },
       {
@@ -55,10 +60,16 @@
         "category": "Editor"
       }
     ],
+    "submenus": [
+      {
+        "id": "extension.copyFolderStructureAs",
+        "label": "Copy Folder Structure As"
+      }
+    ],
     "menus": {
       "explorer/context": [
         {
-          "command": "extension.copyFolderStructure",
+          "submenu": "extension.copyFolderStructureAs",
           "when": "resource",
           "group": "5_folder-structure-pro"
         },
@@ -71,6 +82,16 @@
           "command": "extension.copyFileName",
           "when": "resourceExtname",
           "group": "5_folder-structure-pro"
+        }
+      ],
+      "extension.copyFolderStructureAs": [
+        {
+          "command": "extension.copyFolderStructureAsPlainText",
+          "group": "1_format"
+        },
+        {
+          "command": "extension.copyFolderStructureAsJson",
+          "group": "1_format"
         }
       ],
       "editor/context": [
@@ -92,7 +113,7 @@
             "Plain Text Format"
           ],
           "default": "Plain Text Format",
-          "description": "Format of the folder structure output (JSON or plain text)"
+          "description": "Default format for Create Folder Structure (JSON or plain text)"
         },
         "folderStructure.ignorePatterns": {
           "type": "array",

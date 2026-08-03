@@ -68,7 +68,7 @@
 
 1. 📥 **Install** the extension from VS Code Marketplace
 2. 🖱️ **Right-click** any folder in Explorer
-3. 🎯 **Choose** "Copy Folder Structure" or "Create Folder Structure"
+3. 🎯 **Choose** "Copy Folder Structure As" or "Create Folder Structure"
 4. 🎉 **Done!** Your structure is ready to use
 
 <hr style="border: 2px solid black; width: 100%; " />
@@ -78,8 +78,8 @@
 ### 📁 Copy Folder Structure
 
 1. 🖱️ Right-click a folder in VS Code Explorer
-2. 📋 Select **"Copy Folder Structure"**
-3. 📄 Structure is copied to clipboard in your preferred format (JSON/Plain Text)
+2. 📋 Select **"Copy Folder Structure As"** and choose **Plain Text** or **JSON**
+3. 📄 Structure is copied to clipboard in the selected format
 
 ### 🏗️ Create Folder Structure
 
@@ -203,7 +203,7 @@ Directory structure:
 1. 🔍 **Scans** the selected folder intelligently
 2. 🙈 **Respects** .gitignore and exclude patterns
 3. 🚫 **Filters out** node_modules and hidden files automatically
-4. 📋 **Copies** structure in your chosen format (JSON or Plain Text)
+4. 📋 **Copies** structure in the format you pick from the submenu (JSON or Plain Text)
 
 ### 🏗️ Create Folder Structure
 

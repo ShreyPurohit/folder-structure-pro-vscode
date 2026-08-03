@@ -12,9 +12,9 @@ describe('registerCommands', () => {
 
         registerCommands(context);
 
-        expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(4);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(5);
         expect(push).toHaveBeenCalledTimes(1);
-        expect(push.mock.calls[0]).toHaveLength(4);
+        expect(push.mock.calls[0]).toHaveLength(5);
     });
 });
 
@@ -26,7 +26,7 @@ describe('extension entrypoint', () => {
 
         activate(context);
 
-        expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(4);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledTimes(5);
         expect(push).toHaveBeenCalledTimes(1);
     });
 
