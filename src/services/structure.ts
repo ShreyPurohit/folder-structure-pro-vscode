@@ -2,8 +2,9 @@ import ignore from 'ignore';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ERROR_MESSAGES } from '../constants';
-import { FolderStructure, OutputFormat, TreeNode } from '../types';
+import { FileLeaf, FolderStructure, OutputFormat, TreeNode } from '../types';
 import {
+    fileLeafToFileNames,
     isDirectoryNode,
     isFileLeaf,
     mergeFileExtension,
@@ -56,14 +57,26 @@ export class StructureService {
 
             const isDir = (entry.type & vscode.FileType.Directory) === vscode.FileType.Directory;
             if (isDir) {
+                if (isFileLeaf(structure[entry.name])) {
+                    const prevLeaf = structure[entry.name] as FileLeaf;
+                    delete structure[entry.name];
+                    const fullNames = fileLeafToFileNames(entry.name, prevLeaf);
+                    for (const fn of fullNames) {
+                        structure[fn] = null;
+                    }
+                }
                 structure[entry.name] = await this.buildStructure(fullUri, ig, rootUri);
             } else {
                 const ext = this.fileTypeFor(entry.name);
                 const base = this.baseNameFor(entry.name);
-                structure[base] = mergeFileExtension(
-                    isFileLeaf(structure[base]) ? structure[base] : undefined,
-                    ext,
-                );
+                if (isDirectoryNode(structure[base])) {
+                    structure[entry.name] = null;
+                } else {
+                    structure[base] = mergeFileExtension(
+                        isFileLeaf(structure[base]) ? structure[base] : undefined,
+                        ext,
+                    );
+                }
             }
         }
 
@@ -186,7 +199,17 @@ export class StructureService {
         return name.slice(0, -ext.length);
     }
 
-    private static setFileExtension(ctx: FolderStructure, base: string, extension: string): void {
+    private static setFileExtension(
+        ctx: FolderStructure,
+        base: string,
+        extension: string,
+        fullName?: string,
+    ): void {
+        if (isDirectoryNode(ctx[base])) {
+            const actualName = fullName ?? (extension === 'file' ? base : `${base}.${extension}`);
+            ctx[actualName] = null;
+            return;
+        }
         const current = ctx[base];
         const currentLeaf = isFileLeaf(current) ? current : undefined;
         ctx[base] = mergeFileExtension(currentLeaf, extension);
@@ -229,12 +252,20 @@ export class StructureService {
                 pathStack.length = 0;
                 const ctx = getContext([]);
                 if (node.isDirectory) {
+                    if (isFileLeaf(ctx[node.name])) {
+                        const prevLeaf = ctx[node.name] as FileLeaf;
+                        delete ctx[node.name];
+                        const fullNames = fileLeafToFileNames(node.name, prevLeaf);
+                        for (const fn of fullNames) {
+                            ctx[fn] = null;
+                        }
+                    }
                     ctx[node.name] = ctx[node.name] ?? {};
                     pathStack.push(node.name);
                 } else {
                     const type = this.fileTypeFor(node.name);
                     const base = this.baseNameFor(node.name);
-                    this.setFileExtension(ctx, base, type);
+                    this.setFileExtension(ctx, base, type, node.name);
                 }
                 return;
             }
@@ -250,12 +281,20 @@ export class StructureService {
             }
             const ctx = getContext(pathStack);
             if (node.isDirectory) {
+                if (isFileLeaf(ctx[node.name])) {
+                    const prevLeaf = ctx[node.name] as FileLeaf;
+                    delete ctx[node.name];
+                    const fullNames = fileLeafToFileNames(node.name, prevLeaf);
+                    for (const fn of fullNames) {
+                        ctx[fn] = null;
+                    }
+                }
                 ctx[node.name] = ctx[node.name] ?? {};
                 pathStack.push(node.name);
             } else {
                 const type = this.fileTypeFor(node.name);
                 const base = this.baseNameFor(node.name);
-                this.setFileExtension(ctx, base, type);
+                this.setFileExtension(ctx, base, type, node.name);
             }
         });
 

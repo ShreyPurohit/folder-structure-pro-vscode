@@ -177,4 +177,72 @@ invalid-line
 
         expect(vscode.window.showWarningMessage).toHaveBeenCalled();
     });
+
+    it('preserves both directory and file when sharing the same basename (dir before file)', async () => {
+        const root = vscode.Uri.file('/home/user/project');
+
+        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
+        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
+            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
+            if (uri.path.endsWith('/project')) {
+                return [
+                    { name: 'app', type: vscode.FileType.Directory },
+                    { name: 'app.json', type: vscode.FileType.File },
+                    { name: 'package.json', type: vscode.FileType.File },
+                ];
+            }
+            if (uri.path.endsWith('/app')) {
+                return [{ name: 'index.ts', type: vscode.FileType.File }];
+            }
+            return [];
+        });
+
+        const structure = await StructureService.getStructure(root);
+        expect(structure.project.app).toEqual({ index: 'ts' });
+        expect(structure.project['app.json']).toBeNull();
+
+        const plainText = StructureService.formatStructure(structure, 'Plain Text Format');
+        expect(plainText).toContain('app/');
+        expect(plainText).toContain('index.ts');
+        expect(plainText).toContain('app.json');
+    });
+
+    it('preserves both directory and file when sharing the same basename (file before dir)', async () => {
+        const root = vscode.Uri.file('/home/user/project');
+
+        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
+        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
+            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
+            if (uri.path.endsWith('/project')) {
+                return [
+                    { name: 'app.json', type: vscode.FileType.File },
+                    { name: 'app', type: vscode.FileType.Directory },
+                ];
+            }
+            if (uri.path.endsWith('/app')) {
+                return [{ name: 'index.ts', type: vscode.FileType.File }];
+            }
+            return [];
+        });
+
+        const structure = await StructureService.getStructure(root);
+        expect(structure.project.app).toEqual({ index: 'ts' });
+        expect(structure.project['app.json']).toBeNull();
+    });
+
+    it('parses plain text with both directory and colliding file name', () => {
+        const input = `Directory structure:
+└── my-app/
+    ├── app/
+    │   └── index.ts
+    ├── app.json
+    └── package.json`;
+
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
+        expect(invalidLines).toEqual([]);
+        expect(structure['my-app']).toBeDefined();
+        const root = structure['my-app'] as any;
+        expect(root.app).toEqual({ index: 'ts' });
+        expect(root['app.json']).toBeNull();
+    });
 });
