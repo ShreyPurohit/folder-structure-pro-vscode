@@ -241,6 +241,42 @@ invalid-line
         expect(project['app.json']).toBeNull();
     });
 
+    it('round-trips a directory and multiple colliding files through JSON', async () => {
+        const root = vscode.Uri.file('/home/user/project');
+        const target = vscode.Uri.file('/tmp/target');
+
+        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
+        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
+            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
+            if (uri.path.endsWith('/project')) {
+                return [
+                    { name: 'app', type: vscode.FileType.Directory },
+                    { name: 'app.json', type: vscode.FileType.File },
+                    { name: 'app.ts', type: vscode.FileType.File },
+                ];
+            }
+            if (uri.path.endsWith('/app')) {
+                return [{ name: 'index.ts', type: vscode.FileType.File }];
+            }
+            return [];
+        });
+        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
+        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
+
+        const structure = await StructureService.getStructure(root);
+        const project = getDirectory(structure, 'project');
+        expect(project.app).toEqual({ index: 'ts' });
+        expect(project['app.json']).toBeNull();
+        expect(project['app.ts']).toBeNull();
+
+        const json = StructureService.formatStructure(structure, 'JSON Format');
+        await StructureService.createStructure(target, json, 'JSON Format');
+
+        expect(mkdir).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app'));
+        expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.json'), '');
+        expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.ts'), '');
+    });
+
     it('parses plain text with both directory and colliding file name', () => {
         const input = `Directory structure:
 └── my-app/

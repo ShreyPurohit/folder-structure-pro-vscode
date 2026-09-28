@@ -184,7 +184,7 @@ Directory structure:
 
 - ✅ First line is treated as a header (can contain any text)
 - 🔗 Every line must use tree connectors (`├──` or `└──`)
-- 📁 Exactly one root directory ending with `/`
+- 📁 One or more root entries; directories end with `/`, and root-level files are supported
 - 📏 Consistent indentation (increases by one level each time)
 - ⚠️ Invalid lines are highlighted; confirmation required if errors exist
 
