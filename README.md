@@ -28,6 +28,7 @@
 - [Output Examples](#output-examples)
 - [How It Works](#how-it-works)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
 
@@ -245,6 +246,16 @@ Directory structure:
 **📄 Copy File Name Not Working**
 
 - 📁 **Solution**: Make sure you've selected a valid local file (not a folder)
+
+<hr style="border: 2px solid black; width: 100%; " />
+
+## Contributing
+
+Contributions are welcome. If you want to report a bug, suggest a feature, or help improve the extension, please read the contributor guide:
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+The guide covers setup, local checks, testing, pull request expectations, and dependency updates.
 
 <hr style="border: 2px solid black; width: 100%; " />
 
