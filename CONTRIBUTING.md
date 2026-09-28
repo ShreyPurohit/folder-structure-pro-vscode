@@ -82,17 +82,6 @@ Keep `package.json` and `package-lock.json` in sync. Use `npm update` to update 
 
 Pull requests targeting `main` and pushes to `main` run the **CI** workflow. It checks formatting, lint, types, and builds; runs Vitest on Ubuntu and Windows; uploads a coverage report; and builds a VSIX artifact.
 
-Tags matching `v*` and manual runs of the **Release** workflow build a VSIX and upload it as an artifact. Tag-triggered runs also create or update a GitHub Release. This does not publish to extension marketplaces.
-
-The **Publish** workflow is manual. Add repository Actions secrets for the marketplaces you want to publish to:
-
-| Secret     | Purpose                                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------------ |
-| `VSCE_PAT` | Azure DevOps personal access token with Marketplace (Acquire) access for the Visual Studio Marketplace |
-| `OVSX_PAT` | Open VSX token from [open-vsx.org](https://open-vsx.org/user-settings/tokens)                          |
-
-Choose one or both targets when starting the workflow. The selected target requires its matching secret.
-
 ## Pull Request Process
 
 1. Create a branch from `main`, for example `fix/issue-123` or `feat/new-setting`.
