@@ -1,0 +1,70 @@
+# Publish a VSIX to extension marketplaces (manual only).
+#
+# Required repository Actions secrets:
+#   VSCE_PAT - Azure DevOps PAT with Marketplace (Acquire) access.
+#   OVSX_PAT - Open VSX token from https://open-vsx.org/user-settings/tokens.
+
+name: Publish
+
+on:
+    workflow_dispatch:
+        inputs:
+            publish_vscode_marketplace:
+                description: 'Publish to Visual Studio Marketplace (needs VSCE_PAT)'
+                type: boolean
+                default: true
+            publish_open_vsx:
+                description: 'Publish to Open VSX (needs OVSX_PAT)'
+                type: boolean
+                default: true
+
+permissions:
+    contents: read
+
+concurrency:
+    group: publish-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        name: Publish to marketplaces
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build VSIX
+              run: npx --yes @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+
+            - name: Publish to Visual Studio Marketplace
+              if: inputs.publish_vscode_marketplace
+              env:
+                  VSCE_PAT: ${{ secrets.VSCE_PAT }}
+              shell: bash
+              run: |
+                  if [[ -z "${VSCE_PAT}" ]]; then
+                    echo "::error::VSCE_PAT is not set. Add an Azure DevOps PAT with Marketplace (Acquire) access as a repository Actions secret."
+                    exit 1
+                  fi
+                  npx --yes @vscode/vsce@4.0.0 publish --packagePath copy-folder-structure.vsix --pat "$VSCE_PAT"
+
+            - name: Publish to Open VSX
+              if: inputs.publish_open_vsx
+              env:
+                  OVSX_PAT: ${{ secrets.OVSX_PAT }}
+              shell: bash
+              run: |
+                  if [[ -z "${OVSX_PAT}" ]]; then
+                    echo "::error::OVSX_PAT is not set. Create a token at https://open-vsx.org/user-settings/tokens and add it as a repository Actions secret."
+                    exit 1
+                  fi
+                  npx --yes ovsx@1.2.0 publish copy-folder-structure.vsix --pat "$OVSX_PAT"

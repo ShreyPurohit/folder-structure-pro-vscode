@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.2.4] - 2026-09-29
+
+### Fixed
+
+- Preserve directories and sibling files that share a basename (for example, `app/` and `app.json`) in copied folder structures and Plain Text parsing.
+
 ## [0.2.3] - 2026-08-03
 
 ### Added

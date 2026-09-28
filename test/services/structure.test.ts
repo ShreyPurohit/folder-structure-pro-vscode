@@ -4,6 +4,7 @@ import { StructureService } from '../../src/services/structure';
 import { FileSystemService } from '../../src/services/fileSystem';
 import { GitignoreService } from '../../src/services/gitignore';
 import { resetVscodeMocks } from '../__mocks__/vscode';
+import type { FolderStructure } from '../../src/types';
 
 const PLAIN_TEXT = `Directory structure:
 ├── app/
@@ -17,6 +18,14 @@ const MULTI_ROOT = `Directory structure:
 ├── order-service/
 │   └── package.json
 └── docker-compose.yml`;
+
+function getDirectory(structure: FolderStructure, name: string): FolderStructure {
+    const value = structure[name];
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(`Expected "${name}" to be a directory`);
+    }
+    return value;
+}
 
 describe('StructureService', () => {
     beforeEach(() => {
@@ -198,8 +207,9 @@ invalid-line
         });
 
         const structure = await StructureService.getStructure(root);
-        expect(structure.project.app).toEqual({ index: 'ts' });
-        expect(structure.project['app.json']).toBeNull();
+        const project = getDirectory(structure, 'project');
+        expect(project.app).toEqual({ index: 'ts' });
+        expect(project['app.json']).toBeNull();
 
         const plainText = StructureService.formatStructure(structure, 'Plain Text Format');
         expect(plainText).toContain('app/');
@@ -226,8 +236,9 @@ invalid-line
         });
 
         const structure = await StructureService.getStructure(root);
-        expect(structure.project.app).toEqual({ index: 'ts' });
-        expect(structure.project['app.json']).toBeNull();
+        const project = getDirectory(structure, 'project');
+        expect(project.app).toEqual({ index: 'ts' });
+        expect(project['app.json']).toBeNull();
     });
 
     it('parses plain text with both directory and colliding file name', () => {
@@ -241,7 +252,7 @@ invalid-line
         const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
         expect(invalidLines).toEqual([]);
         expect(structure['my-app']).toBeDefined();
-        const root = structure['my-app'] as any;
+        const root = getDirectory(structure, 'my-app');
         expect(root.app).toEqual({ index: 'ts' });
         expect(root['app.json']).toBeNull();
     });
