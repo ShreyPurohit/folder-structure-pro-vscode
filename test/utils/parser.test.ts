@@ -51,4 +51,52 @@ describe('TreeParser', () => {
         expect(TreeParser.parseLine('│')).toBeNull();
         expect(TreeParser.parseLine('just-a-name.ts')).toBeNull();
     });
+
+    it('strips # inline comments from directory lines', () => {
+        expect(TreeParser.parseLine('├── commands/  # Used for commands')).toEqual({
+            name: 'commands',
+            level: 0,
+            isDirectory: true,
+        });
+    });
+
+    it('strips // inline comments from file lines', () => {
+        expect(TreeParser.parseLine('└── index.ts // entry point')).toEqual({
+            name: 'index.ts',
+            level: 0,
+            isDirectory: false,
+        });
+    });
+
+    it('does not strip # that is part of the name (no leading space)', () => {
+        expect(TreeParser.parseLine('└── C#-project/')).toEqual({
+            name: 'C#-project',
+            level: 0,
+            isDirectory: true,
+        });
+    });
+
+    it('does not strip # at the start of the name', () => {
+        expect(TreeParser.parseLine('└── #changelog')).toEqual({
+            name: '#changelog',
+            level: 0,
+            isDirectory: false,
+        });
+    });
+
+    it('does not strip # that is part of the filename (no space before #)', () => {
+        expect(TreeParser.parseLine('└── file#name.ts')).toEqual({
+            name: 'file#name.ts',
+            level: 0,
+            isDirectory: false,
+        });
+    });
+
+    it('strips // comment from nested directory line', () => {
+        expect(TreeParser.parseLine('│   ├── src/ // main source')).toEqual({
+            name: 'src',
+            level: 1,
+            isDirectory: true,
+        });
+    });
 });

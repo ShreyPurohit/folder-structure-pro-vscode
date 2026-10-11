@@ -19,3 +19,4 @@ vsc-extension-quickstart.md
 assets/*
 !assets/icon.webp
 .prettierignore
+.kiro

@@ -94,6 +94,47 @@ export class StructureService {
         return new PlainTextFormatter().format(structure);
     }
 
+    private static stripLineComment(line: string): string {
+        let inString = false;
+        let i = 0;
+        while (i < line.length) {
+            const ch = line[i];
+            if (inString) {
+                if (ch === '\\') {
+                    i += 2;
+                    continue; // skip escaped char
+                }
+                if (ch === '"') {
+                    inString = false;
+                }
+            } else {
+                if (ch === '"') {
+                    inString = true;
+                }
+                // Only strip comment markers preceded by whitespace (outside strings)
+                if (ch === '/' && line[i + 1] === '/') {
+                    if (i > 0 && /\s/.test(line[i - 1])) {
+                        return line.slice(0, i).trimEnd();
+                    }
+                }
+                if (ch === '#') {
+                    if (i > 0 && /\s/.test(line[i - 1])) {
+                        return line.slice(0, i).trimEnd();
+                    }
+                }
+            }
+            i++;
+        }
+        return line;
+    }
+
+    static stripInlineComments(text: string): string {
+        return text
+            .split('\n')
+            .map((line) => StructureService.stripLineComment(line))
+            .join('\n');
+    }
+
     static async createStructure(
         baseUri: vscode.Uri,
         content: string,
@@ -107,7 +148,8 @@ export class StructureService {
             await this.createFromPlainText(baseUri, content);
         } else {
             try {
-                const structure = JSON.parse(content);
+                const cleaned = this.stripInlineComments(content);
+                const structure = JSON.parse(cleaned);
                 if (!this.validateJsonStructure(structure)) {
                     throw new Error(
                         'Invalid JSON structure: use nested objects for folders and string file types for files',

@@ -292,4 +292,97 @@ invalid-line
         expect(root.app).toEqual({ index: 'ts' });
         expect(root['app.json']).toBeNull();
     });
+
+    it('parsePlainTextToStructure strips # inline comments and produces clean names', () => {
+        const input = `Directory structure:
+├── commands/  # Used for commands
+│   └── index.ts
+└── setup.ts`;
+
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
+        expect(invalidLines).toEqual([]);
+        expect(structure['commands']).toBeDefined();
+        const commands = getDirectory(structure, 'commands');
+        expect(commands['index']).toBe('ts');
+    });
+
+    it('parsePlainTextToStructure strips // inline comments and produces clean names', () => {
+        const input = `Directory structure:
+├── services/  // Used for services
+│   └── fileSystem.ts
+└── setup.ts`;
+
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
+        expect(invalidLines).toEqual([]);
+        expect(structure['services']).toBeDefined();
+        const services = getDirectory(structure, 'services');
+        expect(services['fileSystem']).toBe('ts');
+    });
+
+    it('createStructure handles JSON with # inline comments', async () => {
+        const baseUri = vscode.Uri.file('/tmp/target');
+        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
+        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
+
+        const commentedJson =
+            '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}';
+        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
+
+        expect(mkdir).toHaveBeenCalled();
+        expect(write).toHaveBeenCalled();
+    });
+
+    it('createStructure handles JSON with // inline comments', async () => {
+        const baseUri = vscode.Uri.file('/tmp/target');
+        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
+        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
+
+        const commentedJson = '{\n  "src": { // source folder\n    "main": "ts" // entry\n  }\n}';
+        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
+
+        expect(mkdir).toHaveBeenCalled();
+        expect(write).toHaveBeenCalled();
+    });
+
+    it('stripInlineComments preserves # inside a JSON quoted string value', () => {
+        const line = '  "notes": "Remember #important items"';
+        expect(StructureService.stripInlineComments(line)).toBe(line);
+    });
+
+    it('stripInlineComments preserves // inside a JSON quoted string value', () => {
+        const line = '  "path": "src/http//client.ts"';
+        expect(StructureService.stripInlineComments(line)).toBe(line);
+    });
+
+    it('stripInlineComments handles escaped quotes inside strings and strips trailing comment', () => {
+        // Runtime string fed to the scanner:
+        //   "msg": "He said \"hello\""  // comment
+        // The scanner sees \" inside the string (backslash-escape branch fires, skips the quote),
+        // so the string is never closed early. The // after the final " is outside the string
+        // and preceded by a space, so it is stripped.
+        const input = '{\n  "msg": "He said \\"hello\\""  // comment\n}';
+        const cleaned = StructureService.stripInlineComments(input);
+
+        // The cleaned text must be valid JSON — assert parse succeeds and value is correct.
+        let parsed: Record<string, unknown>;
+        expect(() => {
+            parsed = JSON.parse(cleaned) as Record<string, unknown>;
+        }).not.toThrow();
+        expect(parsed!['msg']).toBe('He said "hello"');
+
+        // Trailing comment must be gone.
+        expect(cleaned).not.toContain('// comment');
+    });
+
+    it('stripInlineComments preserves backslash sequences inside strings and strips the comment', () => {
+        const line = '  "path": "C:\\\\Users\\\\file.ts" // comment';
+        const result = StructureService.stripInlineComments(line);
+        expect(result).toContain('"C:\\\\Users\\\\file.ts"');
+        expect(result).not.toContain('// comment');
+    });
+
+    it('stripInlineComments strips comment outside quoted string and keeps the JSON value intact', () => {
+        const line = '  "index": "ts" // entry point';
+        expect(StructureService.stripInlineComments(line)).toBe('  "index": "ts"');
+    });
 });

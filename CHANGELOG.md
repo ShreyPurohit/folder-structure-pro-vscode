@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.2.5] - 2026-10-11
+
+### Added
+
+- Inline comment support for both Plain Text and JSON folder structures. Lines annotated with `# ...` or `// ...` (preceded by a space) are silently stripped before parsing, so structures copied from READMEs, AI-generated output, or annotated docs work out of the box.
+- Names that legitimately contain `#` (e.g. `C#-project/`, `#changelog`) are unaffected — only a space-prefixed comment marker is stripped.
+
 ## [0.2.4] - 2026-09-29
 
 ### Fixed
