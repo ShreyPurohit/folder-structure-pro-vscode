@@ -51,6 +51,7 @@
 - 🖥️ **Modern UI**: Live preview, validation, and line numbers
 - 🔄 **Smart Handling**: Replace/Skip prompts for existing files
 - 🗑️ **Safe Replace**: Sends replaced items to Trash
+- 💬 **Inline Comment Support**: `#` and `//` comments are silently ignored — paste annotated structures from READMEs or AI output directly
 
 ### 📄 Copy File Name
 
@@ -165,6 +166,24 @@ Perfect for programmatic use - files are represented as type strings:
 }
 ```
 
+Inline comments (`#` or `//`) are supported and ignored during parsing:
+
+```json
+{
+    "app": { // root of the Next.js app
+        "api": { # server-side routes
+            "analyze-typography": {
+                "route": "ts" // API handler
+            }
+        },
+        "favicon": "ico",
+        "globals": "css", // global styles
+        "layout": "tsx",
+        "page": "tsx"
+    }
+}
+```
+
 ### 🌳 Plain Text Format
 
 Human-friendly GitIngest-style tree structure:
@@ -181,12 +200,27 @@ Directory structure:
     └── page.tsx
 ```
 
+Inline comments (`#` or `//`) are supported and ignored during parsing:
+
+```
+Directory structure:
+└── app/
+    ├── api/              # server-side routes
+    │   └── analyze-typography/
+    │       └── route.ts  // API handler
+    ├── favicon.ico
+    ├── globals.css       // global styles
+    ├── layout.tsx
+    └── page.tsx
+```
+
 ### 📝 Plain Text Rules:
 
 - ✅ First line is treated as a header (can contain any text)
 - 🔗 Every line must use tree connectors (`├──` or `└──`)
 - 📁 One or more root entries; directories end with `/`, and root-level files are supported
 - 📏 Consistent indentation (increases by one level each time)
+- 💬 Inline comments (`# ...` or `// ...`) after a space are silently ignored — names like `C#-project` are safe
 - ⚠️ Invalid lines are highlighted; confirmation required if errors exist
 
 ### 📋 Copy Line Path
@@ -241,7 +275,7 @@ Directory structure:
 
 **❌ Input Error (Create Function)**
 
-- 📝 **Solution**: Ensure input follows correct JSON or Plain Text format
+- 📝 **Solution**: Ensure input follows correct JSON or Plain Text format. Inline comments (`#` or `//`) are supported and will be ignored automatically.
 
 **📄 Copy File Name Not Working**
 
