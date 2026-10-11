@@ -55,6 +55,7 @@ class LineParser {
             // no connector -> invalid
             return '';
         }
+        line = line.replace(/ +(\/\/|#).*$/, '');
         return line.trim();
     }
 }

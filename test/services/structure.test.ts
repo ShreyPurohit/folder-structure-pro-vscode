@@ -292,4 +292,54 @@ invalid-line
         expect(root.app).toEqual({ index: 'ts' });
         expect(root['app.json']).toBeNull();
     });
+
+    it('parsePlainTextToStructure strips # inline comments and produces clean names', () => {
+        const input = `Directory structure:
+├── commands/  # Used for commands
+│   └── index.ts
+└── setup.ts`;
+
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
+        expect(invalidLines).toEqual([]);
+        expect(structure['commands']).toBeDefined();
+        const commands = getDirectory(structure, 'commands');
+        expect(commands['index']).toBe('ts');
+    });
+
+    it('parsePlainTextToStructure strips // inline comments and produces clean names', () => {
+        const input = `Directory structure:
+├── services/  // Used for services
+│   └── fileSystem.ts
+└── setup.ts`;
+
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
+        expect(invalidLines).toEqual([]);
+        expect(structure['services']).toBeDefined();
+        const services = getDirectory(structure, 'services');
+        expect(services['fileSystem']).toBe('ts');
+    });
+
+    it('createStructure handles JSON with # inline comments', async () => {
+        const baseUri = vscode.Uri.file('/tmp/target');
+        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
+        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
+
+        const commentedJson = '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}';
+        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
+
+        expect(mkdir).toHaveBeenCalled();
+        expect(write).toHaveBeenCalled();
+    });
+
+    it('createStructure handles JSON with // inline comments', async () => {
+        const baseUri = vscode.Uri.file('/tmp/target');
+        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
+        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
+
+        const commentedJson = '{\n  "src": { // source folder\n    "main": "ts" // entry\n  }\n}';
+        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
+
+        expect(mkdir).toHaveBeenCalled();
+        expect(write).toHaveBeenCalled();
+    });
 });

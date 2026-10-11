@@ -94,6 +94,13 @@ export class StructureService {
         return new PlainTextFormatter().format(structure);
     }
 
+    static stripInlineComments(text: string): string {
+        return text
+            .split('\n')
+            .map((line) => line.replace(/ +(\/\/|#).*$/, ''))
+            .join('\n');
+    }
+
     static async createStructure(
         baseUri: vscode.Uri,
         content: string,
@@ -107,7 +114,8 @@ export class StructureService {
             await this.createFromPlainText(baseUri, content);
         } else {
             try {
-                const structure = JSON.parse(content);
+                const cleaned = this.stripInlineComments(content);
+                const structure = JSON.parse(cleaned);
                 if (!this.validateJsonStructure(structure)) {
                     throw new Error(
                         'Invalid JSON structure: use nested objects for folders and string file types for files',
