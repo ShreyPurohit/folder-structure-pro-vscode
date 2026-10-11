@@ -324,7 +324,8 @@ invalid-line
         const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
         const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
 
-        const commentedJson = '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}';
+        const commentedJson =
+            '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}';
         await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
 
         expect(mkdir).toHaveBeenCalled();
