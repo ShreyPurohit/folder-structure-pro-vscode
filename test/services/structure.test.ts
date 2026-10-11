@@ -355,15 +355,23 @@ invalid-line
     });
 
     it('stripInlineComments handles escaped quotes inside strings and strips trailing comment', () => {
-        // The value "He said \"hello\"" contains escaped quotes; they must NOT end the string early.
-        // The comment marker " // comment" appears AFTER the closing quote of the value, so it IS stripped.
-        const line = '  "msg": "He said \\"hello\\""  // comment';
-        const result = StructureService.stripInlineComments(line);
-        // The content inside the string must be preserved.
-        expect(result).toContain('"He said \\"hello\\""');
-        // The trailing comment after the closing quote must be stripped.
-        expect(result).not.toContain('// comment');
-        expect(result).toBe('  "msg": "He said \\"hello\\""');
+        // Runtime string fed to the scanner:
+        //   "msg": "He said \"hello\""  // comment
+        // The scanner sees \" inside the string (backslash-escape branch fires, skips the quote),
+        // so the string is never closed early. The // after the final " is outside the string
+        // and preceded by a space, so it is stripped.
+        const input = '{\n  "msg": "He said \\"hello\\""  // comment\n}';
+        const cleaned = StructureService.stripInlineComments(input);
+
+        // The cleaned text must be valid JSON — assert parse succeeds and value is correct.
+        let parsed: Record<string, unknown>;
+        expect(() => {
+            parsed = JSON.parse(cleaned) as Record<string, unknown>;
+        }).not.toThrow();
+        expect(parsed!['msg']).toBe('He said "hello"');
+
+        // Trailing comment must be gone.
+        expect(cleaned).not.toContain('// comment');
     });
 
     it('stripInlineComments preserves backslash sequences inside strings and strips the comment', () => {

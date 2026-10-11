@@ -59,10 +59,16 @@ class LineParser {
         //   - Only a `#` or `//` that is preceded by ONE OR MORE spaces is treated as a comment marker.
         //   - A `#` or `//` with no preceding space is considered part of the filename and is preserved.
         //   - Examples:
-        //       "commands/  # Used for commands"  → name becomes "commands"  (comment stripped)
-        //       "C#-project/"                     → name stays   "C#-project" (# has no leading space)
-        //       "file // notes.ts"                → name becomes "file"       (comment stripped)
-        //       "#changelog"                      → name stays   "#changelog" (# is first char, no preceding space)
+        //       "commands/  # Used for commands"  → name becomes "commands"    (comment stripped)
+        //       "C#-project/"                     → name stays   "C#-project"  (# has no leading space)
+        //       "file // notes.ts"                → name becomes "file"        (comment stripped)
+        //       "#changelog"                      → name stays   "#changelog"  (# is first char, no preceding space)
+        //       "file#name.ts"                    → name stays   "file#name.ts"(# has no leading space)
+        //
+        // Known limitation: a legitimate filename that contains a space followed by `#` or `//`
+        // (e.g. "file #draft.ts") will be truncated because the space-preceded marker is
+        // indistinguishable from a comment in plain-text format. If you need such a filename,
+        // use JSON format instead — the JSON parser is quote-aware and will preserve the full value.
         line = line.replace(/ +(\/\/|#).*$/, '');
         return line.trim();
     }
