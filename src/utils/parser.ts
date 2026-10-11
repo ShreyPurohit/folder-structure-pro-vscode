@@ -55,6 +55,14 @@ class LineParser {
             // no connector -> invalid
             return '';
         }
+        // Inline comment rule for plain-text / tree format:
+        //   - Only a `#` or `//` that is preceded by ONE OR MORE spaces is treated as a comment marker.
+        //   - A `#` or `//` with no preceding space is considered part of the filename and is preserved.
+        //   - Examples:
+        //       "commands/  # Used for commands"  → name becomes "commands"  (comment stripped)
+        //       "C#-project/"                     → name stays   "C#-project" (# has no leading space)
+        //       "file // notes.ts"                → name becomes "file"       (comment stripped)
+        //       "#changelog"                      → name stays   "#changelog" (# is first char, no preceding space)
         line = line.replace(/ +(\/\/|#).*$/, '');
         return line.trim();
     }

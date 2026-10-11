@@ -94,10 +94,44 @@ export class StructureService {
         return new PlainTextFormatter().format(structure);
     }
 
+    private static stripLineComment(line: string): string {
+        let inString = false;
+        let i = 0;
+        while (i < line.length) {
+            const ch = line[i];
+            if (inString) {
+                if (ch === '\\') {
+                    i += 2;
+                    continue; // skip escaped char
+                }
+                if (ch === '"') {
+                    inString = false;
+                }
+            } else {
+                if (ch === '"') {
+                    inString = true;
+                }
+                // Only strip comment markers preceded by whitespace (outside strings)
+                if (ch === '/' && line[i + 1] === '/') {
+                    if (i > 0 && /\s/.test(line[i - 1])) {
+                        return line.slice(0, i).trimEnd();
+                    }
+                }
+                if (ch === '#') {
+                    if (i > 0 && /\s/.test(line[i - 1])) {
+                        return line.slice(0, i).trimEnd();
+                    }
+                }
+            }
+            i++;
+        }
+        return line;
+    }
+
     static stripInlineComments(text: string): string {
         return text
             .split('\n')
-            .map((line) => line.replace(/ +(\/\/|#).*$/, ''))
+            .map((line) => StructureService.stripLineComment(line))
             .join('\n');
     }
 

@@ -83,4 +83,20 @@ describe('TreeParser', () => {
             isDirectory: false,
         });
     });
+
+    it('does not strip # that is part of the filename (no space before #)', () => {
+        expect(TreeParser.parseLine('└── file#name.ts')).toEqual({
+            name: 'file#name.ts',
+            level: 0,
+            isDirectory: false,
+        });
+    });
+
+    it('strips // comment from nested directory line', () => {
+        expect(TreeParser.parseLine('│   ├── src/ // main source')).toEqual({
+            name: 'src',
+            level: 1,
+            isDirectory: true,
+        });
+    });
 });

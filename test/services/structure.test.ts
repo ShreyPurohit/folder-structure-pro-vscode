@@ -343,4 +343,38 @@ invalid-line
         expect(mkdir).toHaveBeenCalled();
         expect(write).toHaveBeenCalled();
     });
+
+    it('stripInlineComments preserves # inside a JSON quoted string value', () => {
+        const line = '  "notes": "Remember #important items"';
+        expect(StructureService.stripInlineComments(line)).toBe(line);
+    });
+
+    it('stripInlineComments preserves // inside a JSON quoted string value', () => {
+        const line = '  "path": "src/http//client.ts"';
+        expect(StructureService.stripInlineComments(line)).toBe(line);
+    });
+
+    it('stripInlineComments handles escaped quotes inside strings and strips trailing comment', () => {
+        // The value "He said \"hello\"" contains escaped quotes; they must NOT end the string early.
+        // The comment marker " // comment" appears AFTER the closing quote of the value, so it IS stripped.
+        const line = '  "msg": "He said \\"hello\\""  // comment';
+        const result = StructureService.stripInlineComments(line);
+        // The content inside the string must be preserved.
+        expect(result).toContain('"He said \\"hello\\""');
+        // The trailing comment after the closing quote must be stripped.
+        expect(result).not.toContain('// comment');
+        expect(result).toBe('  "msg": "He said \\"hello\\""');
+    });
+
+    it('stripInlineComments preserves backslash sequences inside strings and strips the comment', () => {
+        const line = '  "path": "C:\\\\Users\\\\file.ts" // comment';
+        const result = StructureService.stripInlineComments(line);
+        expect(result).toContain('"C:\\\\Users\\\\file.ts"');
+        expect(result).not.toContain('// comment');
+    });
+
+    it('stripInlineComments strips comment outside quoted string and keeps the JSON value intact', () => {
+        const line = '  "index": "ts" // entry point';
+        expect(StructureService.stripInlineComments(line)).toBe('  "index": "ts"');
+    });
 });
