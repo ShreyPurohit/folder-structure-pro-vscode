@@ -1,0 +1,14 @@
+import { build } from 'esbuild';
+
+await build({
+    entryPoints: ['src/index.ts'],
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node22',
+    outfile: 'dist/index.js',
+    external: ['node:*'],
+    banner: {
+        js: '#!/usr/bin/env node',
+    },
+});

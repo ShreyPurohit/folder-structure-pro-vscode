@@ -3,7 +3,21 @@
     "version": "0.1.0",
     "private": true,
     "type": "module",
-    "dependencies": {
+    "engines": {
+        "node": ">=22.14.0"
+    },
+    "bin": {
+        "folder-structure-pro": "./dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "pnpm --filter @folder-structure-pro/core build && node esbuild.mjs",
+        "check-types": "pnpm --filter @folder-structure-pro/core build && tsc --noEmit -p tsconfig.json",
+        "test": "pnpm run build && vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
         "@folder-structure-pro/core": "workspace:*"
     }
 }
