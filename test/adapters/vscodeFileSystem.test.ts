@@ -114,14 +114,20 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('rejects invalid child components without normalizing them', () => {
         const parent = adapter.toFolderPath(vscode.Uri.file('/workspace'));
-        const invalidNames = ['', '.', '..', 'a/b', 'a\0b'];
-        if (process.platform === 'win32') {
-            invalidNames.push('a\\b');
+        const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+        if (!platformDescriptor?.configurable) {
+            throw new Error('The Node.js platform property cannot be stubbed in this test.');
         }
-        for (const name of invalidNames) {
-            expect(() => adapter.joinChild(parent, name)).toThrow(
-                expect.objectContaining({ code: 'INVALID_PATH' }),
-            );
+
+        Object.defineProperty(process, 'platform', { ...platformDescriptor, value: 'win32' });
+        try {
+            for (const name of ['', '.', '..', 'a/b', 'a\0b', 'a\\b']) {
+                expect(() => adapter.joinChild(parent, name)).toThrow(
+                    expect.objectContaining({ code: 'INVALID_PATH' }),
+                );
+            }
+        } finally {
+            Object.defineProperty(process, 'platform', platformDescriptor);
         }
     });
 
