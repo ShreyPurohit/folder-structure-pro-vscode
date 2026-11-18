@@ -5,7 +5,6 @@ import {
     ERROR_MESSAGES,
     JSON_OUTPUT_FORMAT,
     PLAIN_TEXT_OUTPUT_FORMAT,
-    TREE_SYMBOLS,
 } from '../../src/constants';
 
 describe('constants', () => {
@@ -14,7 +13,6 @@ describe('constants', () => {
         expect(JSON_OUTPUT_FORMAT).toBe('JSON Format');
         expect(DEFAULT_OUTPUT_FORMAT).toBe(PLAIN_TEXT_OUTPUT_FORMAT);
         expect(DEFAULT_ENCODING).toBe('utf-8');
-        expect(TREE_SYMBOLS.BRANCH).toBe('├── ');
         expect(ERROR_MESSAGES.TARGET_REQUIRED).toBe('Target directory is required.');
     });
 });

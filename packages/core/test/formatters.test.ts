@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JsonFormatter } from '../../src/services/formatters/jsonFormatter';
-import { PlainTextFormatter } from '../../src/services/formatters/plainTextFormatter';
-import type { FolderStructure } from '../../src/types';
+import { formatJson, formatPlainText, type FolderStructure } from '../src/index.js';
 
 describe('formatters', () => {
     it('formats JSON structures', () => {
@@ -12,8 +10,7 @@ describe('formatters', () => {
                 },
             },
         };
-        const formatter = new JsonFormatter();
-        expect(JSON.parse(formatter.format(structure))).toEqual(structure);
+        expect(JSON.parse(formatJson(structure))).toEqual(structure);
     });
 
     it('formats plain text with multi-extension file leaves', () => {
@@ -25,7 +22,7 @@ describe('formatters', () => {
             'docker-compose': 'yml',
         };
 
-        const output = new PlainTextFormatter().format(structure);
+        const output = formatPlainText(structure);
         expect(output).toContain('Directory structure:');
         expect(output).toContain('├── user-service/');
         expect(output).toContain('├── package.json');
@@ -40,7 +37,7 @@ describe('formatters', () => {
             'service-b': { index: 'js' },
         };
 
-        const output = new PlainTextFormatter().format(structure);
+        const output = formatPlainText(structure);
         expect(output).toContain('service-a/');
         expect(output).toContain('\n\n');
         expect(output).toContain('service-b/');
@@ -60,7 +57,7 @@ describe('formatters', () => {
             },
         };
 
-        const output = new PlainTextFormatter().format(structure);
+        const output = formatPlainText(structure);
         expect(output).not.toMatch(/archive\/\n\s*\n/);
         expect(output).not.toMatch(/diagrams\/\n\s*\n/);
         expect(output).not.toMatch(/meeting-notes\/\n\s*\n/);
@@ -69,5 +66,43 @@ describe('formatters', () => {
         expect(output).toContain('│   ├── diagrams/');
         expect(output).toContain('├── meeting-notes/');
         expect(output).toContain('└── index.md');
+    });
+
+    it('preserves exact plain-text output for nested and empty directories', () => {
+        const structure: FolderStructure = {
+            project: {
+                src: { index: 'ts' },
+                docs: {},
+            },
+        };
+
+        expect(formatPlainText(structure)).toBe(
+            'Directory structure:\n' +
+                '└── project/\n' +
+                '    ├── src/\n' +
+                '    │   └── index.ts\n' +
+                '    └── docs/',
+        );
+    });
+
+    it('preserves exact spacing between multiple root directories', () => {
+        const structure: FolderStructure = {
+            'service-a': { index: 'ts' },
+            'service-b': { index: 'js' },
+        };
+
+        expect(formatPlainText(structure)).toBe(
+            'Directory structure:\n' +
+                '├── service-a/\n' +
+                '    └── index.ts\n\n' +
+                '└── service-b/\n' +
+                '    └── index.js',
+        );
+    });
+
+    it('serializes JSON with the existing two-space indentation', () => {
+        expect(formatJson({ project: { src: { index: 'ts' } } })).toBe(
+            '{\n  "project": {\n    "src": {\n      "index": "ts"\n    }\n  }\n}',
+        );
     });
 });

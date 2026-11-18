@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TreeParser } from '../../src/utils/parser';
+import { TreeParser } from '../src/index.js';
 
 describe('TreeParser', () => {
     it('returns null for empty or header lines', () => {
@@ -97,6 +97,22 @@ describe('TreeParser', () => {
             name: 'src',
             level: 1,
             isDirectory: true,
+        });
+    });
+
+    it('retains the documented space-before-comment filename limitation', () => {
+        expect(TreeParser.parseLine('└── file #draft.ts')).toEqual({
+            name: 'file',
+            level: 0,
+            isDirectory: false,
+        });
+    });
+
+    it('does not perform filesystem name validation while parsing', () => {
+        expect(TreeParser.parseLine('└── ../outside.ts')).toEqual({
+            name: '../outside.ts',
+            level: 0,
+            isDirectory: false,
         });
     });
 });

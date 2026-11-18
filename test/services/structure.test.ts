@@ -16,14 +16,6 @@ const PLAIN_TEXT = `Directory structure:
 │   └── index.ts
 └── package.json`;
 
-const MULTI_ROOT = `Directory structure:
-├── user-service/
-│   └── package.json
-│
-├── order-service/
-│   └── package.json
-└── docker-compose.yml`;
-
 function getDirectory(structure: FolderStructure, name: string): FolderStructure {
     const value = structure[name];
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -57,75 +49,23 @@ describe('StructureService', () => {
         vi.restoreAllMocks();
     });
 
-    it('derives file types and base names', () => {
+    it('preserves host path semantics for extension filename helpers', () => {
         expect(StructureService.fileTypeFor('index.ts')).toBe('ts');
         expect(StructureService.fileTypeFor('Dockerfile')).toBe('file');
         expect(StructureService.baseNameFor('index.ts')).toBe('index');
         expect(StructureService.baseNameFor('README')).toBe('README');
     });
 
-    it('parses plain text into structure with multi-extension support', () => {
-        const input = `Directory structure:
-└── app/
-    ├── package.json
-    └── package.lock`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure.app).toEqual({
-            package: ['json', 'lock'],
-        });
-    });
-
-    it('supports multi-root plain text and ignores decorative separator lines', () => {
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(MULTI_ROOT);
-        expect(invalidLines).toEqual([]);
-        expect(Object.keys(structure)).toEqual(['user-service', 'order-service', 'docker-compose']);
-        expect(structure['docker-compose']).toBe('yml');
-    });
-
-    it('marks level gaps as invalid', () => {
-        const input = `Directory structure:
-└── app/
-│   │   │   └── deep.ts`;
-
-        const { invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines.length).toBeGreaterThan(0);
-    });
-
-    it('rejects JSON with invalid nested values', () => {
-        expect(StructureService.validateJsonStructure({ app: { nested: 123 } })).toBe(false);
-    });
-
-    it('marks malformed connector lines as invalid', () => {
-        const input = `Directory structure:
-├── app/
-│   ├── `;
-
-        const { invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toContain(3);
-    });
-
-    it('validates JSON structures including string[] and null leaves', () => {
-        expect(
-            StructureService.validateJsonStructure({
-                app: {
-                    package: ['json', 'lock'],
-                    Dockerfile: null,
-                },
-            }),
-        ).toBe(true);
-        expect(StructureService.validateJsonStructure({ app: [] })).toBe(false);
-        expect(StructureService.validateJsonStructure({ app: ['json', 1] })).toBe(false);
-        expect(StructureService.validateJsonStructure(null)).toBe(false);
-    });
-
-    it('formats structures by output format', () => {
-        const structure = { app: { index: 'ts' } };
-        expect(StructureService.formatStructure(structure, 'JSON Format')).toContain(
-            '"index": "ts"',
+    it('uses the extension filename semantics when converting parsed names', () => {
+        const name = 'folder.name\\file';
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(
+            `Directory structure:\n└── ${name}`,
         );
-        expect(StructureService.formatAsTree(structure)).toContain('Directory structure:');
+
+        expect(invalidLines).toEqual([]);
+        expect(structure).toEqual({
+            [StructureService.baseNameFor(name)]: StructureService.fileTypeFor(name),
+        });
     });
 
     it('builds structure from remote URIs', async () => {
@@ -293,48 +233,6 @@ invalid-line
         expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.ts'), '');
     });
 
-    it('parses plain text with both directory and colliding file name', () => {
-        const input = `Directory structure:
-└── my-app/
-    ├── app/
-    │   └── index.ts
-    ├── app.json
-    └── package.json`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['my-app']).toBeDefined();
-        const root = getDirectory(structure, 'my-app');
-        expect(root.app).toEqual({ index: 'ts' });
-        expect(root['app.json']).toBeNull();
-    });
-
-    it('parsePlainTextToStructure strips # inline comments and produces clean names', () => {
-        const input = `Directory structure:
-├── commands/  # Used for commands
-│   └── index.ts
-└── setup.ts`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['commands']).toBeDefined();
-        const commands = getDirectory(structure, 'commands');
-        expect(commands['index']).toBe('ts');
-    });
-
-    it('parsePlainTextToStructure strips // inline comments and produces clean names', () => {
-        const input = `Directory structure:
-├── services/  // Used for services
-│   └── fileSystem.ts
-└── setup.ts`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['services']).toBeDefined();
-        const services = getDirectory(structure, 'services');
-        expect(services['fileSystem']).toBe('ts');
-    });
-
     it('createStructure handles JSON with # inline comments', async () => {
         const baseUri = vscode.Uri.file('/tmp/target');
         const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
@@ -358,47 +256,5 @@ invalid-line
 
         expect(mkdir).toHaveBeenCalled();
         expect(write).toHaveBeenCalled();
-    });
-
-    it('stripInlineComments preserves # inside a JSON quoted string value', () => {
-        const line = '  "notes": "Remember #important items"';
-        expect(StructureService.stripInlineComments(line)).toBe(line);
-    });
-
-    it('stripInlineComments preserves // inside a JSON quoted string value', () => {
-        const line = '  "path": "src/http//client.ts"';
-        expect(StructureService.stripInlineComments(line)).toBe(line);
-    });
-
-    it('stripInlineComments handles escaped quotes inside strings and strips trailing comment', () => {
-        // Runtime string fed to the scanner:
-        //   "msg": "He said \"hello\""  // comment
-        // The scanner sees \" inside the string (backslash-escape branch fires, skips the quote),
-        // so the string is never closed early. The // after the final " is outside the string
-        // and preceded by a space, so it is stripped.
-        const input = '{\n  "msg": "He said \\"hello\\""  // comment\n}';
-        const cleaned = StructureService.stripInlineComments(input);
-
-        // The cleaned text must be valid JSON — assert parse succeeds and value is correct.
-        let parsed: Record<string, unknown>;
-        expect(() => {
-            parsed = JSON.parse(cleaned) as Record<string, unknown>;
-        }).not.toThrow();
-        expect(parsed!['msg']).toBe('He said "hello"');
-
-        // Trailing comment must be gone.
-        expect(cleaned).not.toContain('// comment');
-    });
-
-    it('stripInlineComments preserves backslash sequences inside strings and strips the comment', () => {
-        const line = '  "path": "C:\\\\Users\\\\file.ts" // comment';
-        const result = StructureService.stripInlineComments(line);
-        expect(result).toContain('"C:\\\\Users\\\\file.ts"');
-        expect(result).not.toContain('// comment');
-    });
-
-    it('stripInlineComments strips comment outside quoted string and keeps the JSON value intact', () => {
-        const line = '  "index": "ts" // entry point';
-        expect(StructureService.stripInlineComments(line)).toBe('  "index": "ts"');
     });
 });

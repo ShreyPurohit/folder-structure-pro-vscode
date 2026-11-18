@@ -10,6 +10,24 @@ export interface TreeNode {
     isDirectory: boolean;
 }
 
+function extensionOf(name: string): string {
+    const baseName = name.slice(name.lastIndexOf('/') + 1);
+    if (baseName === '.' || baseName === '..') {
+        return '';
+    }
+    const dot = baseName.lastIndexOf('.');
+    return dot <= 0 ? '' : baseName.slice(dot);
+}
+
+export function fileTypeFor(name: string): string {
+    return extensionOf(name).replace(/^\./, '') || 'file';
+}
+
+export function baseNameFor(name: string): string {
+    const extension = extensionOf(name);
+    return extension ? name.slice(0, -extension.length) : name;
+}
+
 export function isDirectoryNode(value: FolderStructure[string]): value is FolderStructure {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

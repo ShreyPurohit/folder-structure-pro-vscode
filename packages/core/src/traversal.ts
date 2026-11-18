@@ -8,6 +8,8 @@ import {
 import {
     fileLeafToFileNames,
     type FolderStructure,
+    baseNameFor,
+    fileTypeFor,
     isDirectoryNode,
     isFileLeaf,
     mergeFileExtension,
@@ -33,23 +35,6 @@ function classifyEntry(metadata: EntryMetadata): TraversalEntryKind {
         return metadata.kind;
     }
     return 'unknown';
-}
-
-function extensionOf(name: string): string {
-    if (name === '.' || name === '..') {
-        return '';
-    }
-    const dot = name.lastIndexOf('.');
-    return dot <= 0 ? '' : name.slice(dot);
-}
-
-function fileTypeFor(name: string): string {
-    return extensionOf(name).replace(/^\./, '') || 'file';
-}
-
-function baseNameFor(name: string): string {
-    const extension = extensionOf(name);
-    return extension ? name.slice(0, -extension.length) : name;
 }
 
 function addFile(structure: FolderStructure, name: string): void {

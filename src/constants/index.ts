@@ -3,14 +3,6 @@ export const JSON_OUTPUT_FORMAT = 'JSON Format';
 export const DEFAULT_OUTPUT_FORMAT = PLAIN_TEXT_OUTPUT_FORMAT;
 export const DEFAULT_ENCODING = 'utf-8';
 
-// Tree drawing symbols used for the Plain Text-style formatter and parser
-export const TREE_SYMBOLS = {
-    VERTICAL: '│', // vertical guide
-    BRANCH: '├── ', // branch connector (with trailing space)
-    LAST: '└── ', // last connector (with trailing space)
-    INDENT: '    ', // 4-space indent used between levels
-} as const;
-
 export const ERROR_MESSAGES = {
     INVALID_FILE: 'Invalid file selected. Please try again.',
     INVALID_DIRECTORY: 'Please select a valid folder.',

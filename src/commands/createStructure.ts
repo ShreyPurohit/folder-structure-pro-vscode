@@ -46,9 +46,7 @@ export async function createStructure(): Promise<void> {
                     });
                 } else {
                     try {
-                        const obj = JSON.parse(
-                            StructureService.stripInlineComments(message.text ?? '{}'),
-                        );
+                        const obj = StructureService.parseJsonStructure(message.text ?? '{}');
                         const valid = StructureService.validateJsonStructure(obj);
                         const preview = valid ? StructureService.formatAsTree(obj) : '';
                         panel.webview.postMessage({
@@ -96,9 +94,7 @@ export async function createStructure(): Promise<void> {
                         targets = Object.keys(structure).map((k) => k);
                     } else {
                         try {
-                            const obj = JSON.parse(
-                                StructureService.stripInlineComments(message.text ?? '{}'),
-                            );
+                            const obj = StructureService.parseJsonStructure(message.text ?? '{}');
                             if (!StructureService.validateJsonStructure(obj)) {
                                 vscode.window.showErrorMessage(
                                     'Invalid JSON structure. Please use nested objects and string or string[] file types for files.',
