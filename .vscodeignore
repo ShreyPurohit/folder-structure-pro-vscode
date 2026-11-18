@@ -16,6 +16,10 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 .github/**
+.copilot/**
+packages/**
+pnpm-lock.yaml
+pnpm-workspace.yaml
 assets/*
 !assets/icon.webp
 .prettierignore

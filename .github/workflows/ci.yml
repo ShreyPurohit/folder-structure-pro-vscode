@@ -44,6 +44,15 @@ jobs:
             - name: Typecheck tests
               run: pnpm run check-types:test
 
+            - name: Test core
+              run: pnpm --filter @folder-structure-pro/core test
+
+            - name: Typecheck core
+              run: pnpm --filter @folder-structure-pro/core check-types
+
+            - name: Build core
+              run: pnpm --filter @folder-structure-pro/core build
+
     test:
         name: Test (${{ matrix.os }})
         runs-on: ${{ matrix.os }}
@@ -129,7 +138,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Package VSIX
-              run: pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+              run: pnpm dlx @vscode/vsce@4.0.0 package --no-dependencies --out copy-folder-structure.vsix
 
             - name: Upload VSIX
               uses: actions/upload-artifact@v6

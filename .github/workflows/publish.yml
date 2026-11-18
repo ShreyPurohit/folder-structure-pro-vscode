@@ -48,7 +48,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Build VSIX
-              run: pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+              run: pnpm dlx @vscode/vsce@4.0.0 package --no-dependencies --out copy-folder-structure.vsix
 
             - name: Publish to Visual Studio Marketplace
               if: inputs.publish_vscode_marketplace

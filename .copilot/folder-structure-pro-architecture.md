@@ -66,7 +66,7 @@ Core must not import `vscode`, `node:fs`, `node:path`, Clack or terminal librari
 
 ### Path and filesystem interface
 
-Represent paths as opaque branded handles. Core must not inspect them with native path APIs or concatenate them. Adapters own `join`, `relative`, and basename operations. Ignore matching receives normalized relative paths using `/` separators, with no leading slash or `./`.
+Represent paths as opaque branded handles. Core must not inspect them with native path APIs or concatenate them. Adapters own `joinChild(parent, name)`, `relative`, and basename operations. `joinChild` joins exactly one child component and rejects empty, rooted, `.`/`..`, NUL-containing, and otherwise invalid components, including separators for the adapter's path model. It must not silently normalize, split, or reinterpret invalid names. Ignore matching receives normalized relative paths using `/` separators, with no leading slash or `./`.
 
 The common interface should provide asynchronous:
 
@@ -76,7 +76,7 @@ The common interface should provide asynchronous:
 - `exists`
 - `createDirectory`
 - `writeText`
-- `join`
+- `joinChild(parent, name)`
 - `relative`
 - `basename`
 
