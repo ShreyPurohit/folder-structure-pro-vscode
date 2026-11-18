@@ -2,6 +2,12 @@
   "name": "copy-folder-structure",
   "displayName": "Folder Structure Pro",
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
+  "packageManager": "pnpm@10.32.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "publisher": "iamshreydxv",
   "version": "0.2.5",
   "engines": {
@@ -145,12 +151,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "vscode:prepublish": "pnpm run package",
+    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
     "check-types": "tsc --noEmit",
     "check-types:test": "tsc --noEmit -p test/tsconfig.json",
     "lint": "eslint src",

@@ -291,6 +291,10 @@ Contributions are welcome. If you want to report a bug, suggest a feature, or he
 
 The guide covers setup, local checks, testing, pull request expectations, and dependency updates.
 
+### Development package manager
+
+Contributors must use **pnpm 10.32.0**. Enable Corepack with `corepack enable`, then install dependencies with `pnpm install --frozen-lockfile`. See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup and development commands. `npm install` and `npm ci` are not supported for project dependencies.
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## License

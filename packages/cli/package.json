@@ -1,0 +1,9 @@
+{
+    "name": "folder-structure-pro",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "@folder-structure-pro/core": "workspace:*"
+    }
+}

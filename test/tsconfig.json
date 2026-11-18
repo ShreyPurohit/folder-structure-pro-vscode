@@ -12,5 +12,10 @@
             "vscode": ["./__mocks__/vscode.ts"]
         }
     },
-    "include": ["./**/*.ts", "../src/**/*.ts", "../vitest.config.ts"]
+    "include": [
+            "./**/*.ts",
+            "../src/**/*.ts",
+            "../packages/core/**/*.ts",
+            "../vitest.config.ts"
+    ]
 }

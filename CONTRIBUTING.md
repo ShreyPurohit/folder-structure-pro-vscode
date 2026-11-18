@@ -10,6 +10,21 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 ## Development Setup
 
+### Required package manager
+
+This repository uses **pnpm 10.32.0** as its only supported package manager. Node.js 24 is used in CI.
+
+Enable Corepack and activate the repository-pinned pnpm version:
+
+```bash
+corepack enable
+corepack pnpm --version
+```
+
+If Corepack is unavailable, install pnpm 10.32.0 using the [official pnpm installation guide](https://pnpm.io/installation).
+
+Use pnpm for all repository dependency and script operations. `npm install` and `npm ci` are not supported for installing this repository's dependencies.
+
 1. **Clone the repository**
 
     ```bash
@@ -19,16 +34,16 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 2. **Install dependencies**
 
-    CI uses Node.js 24. Install the exact dependency versions from the lockfile:
+    Install the exact dependency versions from `pnpm-lock.yaml`:
 
     ```bash
-    npm ci
+    pnpm install --frozen-lockfile
     ```
 
 3. **Compile the extension**
 
     ```bash
-    npm run compile
+    pnpm run compile
     ```
 
     This runs typechecking and linting, then builds `dist/extension.js`.
@@ -36,7 +51,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 4. **Run tests**
 
     ```bash
-    npm test
+    pnpm test
     ```
 
     Tests use Vitest and are located under `test/`.
@@ -44,7 +59,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 5. **Check coverage**
 
     ```bash
-    npm run test:coverage
+    pnpm run test:coverage
     ```
 
     This runs the tests with coverage and writes a report to `coverage/`.
@@ -54,7 +69,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
     Node.js 22 or later is required by the VSIX CLI:
 
     ```bash
-    npx --yes @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+    pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
     ```
 
     Packaging runs the `vscode:prepublish` script, which performs a production build.
@@ -64,19 +79,19 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 Run the checks used by GitHub Actions:
 
 ```bash
-npm run format:check
-npm run compile
-npm run check-types:test
-npm test
-npm run test:coverage
-npx --yes @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+pnpm run format:check
+pnpm run compile
+pnpm run check-types:test
+pnpm test
+pnpm run test:coverage
+pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
 ```
 
 Add or update tests for behavior changes. Keep changes focused and follow the existing TypeScript, ESLint, and Prettier conventions.
 
 ## Dependency Changes
 
-Keep `package.json` and `package-lock.json` in sync. Use `npm update` to update dependencies within the declared version ranges, or `npm install <package>` when adding a dependency. Commit manifest and lockfile changes together. Do not delete or hand-edit `package-lock.json`; CI installs from it with `npm ci`.
+Use pnpm to add, remove, or update dependencies, and commit `package.json` and `pnpm-lock.yaml` changes together. Do not create or commit `package-lock.json`. `npm install` and `npm ci` are not supported for project dependencies.
 
 ## Continuous Integration
 
