@@ -42,12 +42,18 @@ export class Uri {
         return base.with({ path: joined });
     }
 
-    static parse(value: string): Uri {
-        const match = /^([^:/?#]+):\/\/([^?#]*)(\?([^#]*))?(#(.*))?$/.exec(value);
-        if (!match) {
-            return Uri.file(value);
+    static parse(value: string, strict = false): Uri {
+        if (strict && /%(?![0-9a-f]{2})/i.test(value)) {
+            throw new URIError('Malformed URI escape sequence.');
         }
-        return new Uri(match[1], '', match[2], match[4] ?? '', match[6] ?? '');
+        const match =
+            /^([A-Za-z][A-Za-z0-9+.-]*):(?:(\/\/([^/?#]*))?([^?#]*))(?:\?([^#]*))?(?:#(.*))?$/.exec(
+                value,
+            );
+        if (!match) {
+            throw new URIError('Malformed URI.');
+        }
+        return new Uri(match[1], match[3] ?? '', match[4] ?? '', match[5] ?? '', match[6] ?? '');
     }
 
     constructor(
@@ -81,7 +87,12 @@ export class Uri {
     toString(_skipEncoding?: boolean): string {
         const query = this.query ? `?${this.query}` : '';
         const fragment = this.fragment ? `#${this.fragment}` : '';
-        return `${this.scheme}://${this.path}${query}${fragment}`;
+        const authority = this.authority
+            ? `//${this.authority}`
+            : this.scheme === 'file'
+              ? '//'
+              : '';
+        return `${this.scheme}:${authority}${this.path}${query}${fragment}`;
     }
 
     toJSON(): {
