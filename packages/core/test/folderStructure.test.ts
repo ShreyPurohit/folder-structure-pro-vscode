@@ -6,8 +6,8 @@ import {
     isFileLeaf,
     mergeFileExtension,
     normalizeFileLeafExtensions,
-} from '../../src/utils/folderStructure';
-import type { FileLeaf, FolderStructure } from '../../src/types';
+} from '../src/folderStructure.js';
+import type { FileLeaf, FolderStructure } from '../src/folderStructure.js';
 
 describe('folderStructure helpers', () => {
     it('identifies directory nodes', () => {

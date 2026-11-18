@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@folder-structure-pro/core':
+        specifier: workspace:*
+        version: link:packages/core
       '@types/node':
         specifier: ^20.19.42
         version: 20.19.43

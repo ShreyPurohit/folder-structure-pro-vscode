@@ -1,20 +1,10 @@
-export type FileLeaf = string | string[] | null;
-
-export interface FolderStructure {
-    [key: string]: FolderStructure | FileLeaf;
-}
+export type { FileLeaf, FolderStructure, TreeNode } from '@folder-structure-pro/core';
 
 export type OutputFormat = 'Plain Text Format' | 'JSON Format';
 
 export interface WebviewMessage {
     command: 'submit';
     text: string;
-}
-
-export interface TreeNode {
-    name: string;
-    level: number;
-    isDirectory: boolean;
 }
 
 /*
