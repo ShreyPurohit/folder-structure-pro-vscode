@@ -3,7 +3,12 @@ import * as vscode from 'vscode';
 import { StructureService } from '../../src/services/structure';
 import { FileSystemService } from '../../src/services/fileSystem';
 import { GitignoreService } from '../../src/services/gitignore';
-import { resetVscodeMocks } from '../__mocks__/vscode';
+import {
+    mockFsReadDirectory,
+    mockFsReadFile,
+    mockFsStat,
+    resetVscodeMocks,
+} from '../__mocks__/vscode';
 import type { FolderStructure } from '../../src/types';
 
 const PLAIN_TEXT = `Directory structure:
@@ -25,6 +30,25 @@ function getDirectory(structure: FolderStructure, name: string): FolderStructure
         throw new Error(`Expected "${name}" to be a directory`);
     }
     return value;
+}
+
+type MockTree = Record<string, [string, vscode.FileType][]>;
+
+function configureTree(tree: MockTree): void {
+    mockFsReadDirectory.mockImplementation(async (uri) => tree[uri.path] ?? []);
+    mockFsStat.mockImplementation(async (uri) => {
+        if (Object.prototype.hasOwnProperty.call(tree, uri.path)) {
+            return { type: vscode.FileType.Directory };
+        }
+        for (const [directoryPath, entries] of Object.entries(tree)) {
+            const entry = entries.find(([name]) => `${directoryPath}/${name}` === uri.path);
+            if (entry) {
+                return { type: entry[1] };
+            }
+        }
+        throw Object.assign(new Error('File not found'), { code: 'FileNotFound' });
+    });
+    mockFsReadFile.mockResolvedValue(new TextEncoder().encode(''));
 }
 
 describe('StructureService', () => {
@@ -105,24 +129,25 @@ describe('StructureService', () => {
     });
 
     it('builds structure from remote URIs', async () => {
-        const root = vscode.Uri.file('/home/user/project');
+        const root = vscode.Uri.from({
+            scheme: 'vscode-remote',
+            authority: 'ssh-remote+example',
+            path: '/home/user/project',
+        });
         const srcUri = vscode.Uri.joinPath(root, 'src');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue(['node_modules']);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'src', type: vscode.FileType.Directory },
-                    { name: 'package.json', type: vscode.FileType.File },
-                    { name: 'package.lock', type: vscode.FileType.File },
-                    { name: '.gitignore', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/src')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: ['node_modules'],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['src', vscode.FileType.Directory],
+                ['package.json', vscode.FileType.File],
+                ['package.lock', vscode.FileType.File],
+                ['.gitignore', vscode.FileType.File],
+            ],
+            '/home/user/project/src': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -190,20 +215,17 @@ invalid-line
     it('preserves both directory and file when sharing the same basename (dir before file)', async () => {
         const root = vscode.Uri.file('/home/user/project');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app', type: vscode.FileType.Directory },
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'package.json', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app', vscode.FileType.Directory],
+                ['app.json', vscode.FileType.File],
+                ['package.json', vscode.FileType.File],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -220,19 +242,16 @@ invalid-line
     it('preserves both directory and file when sharing the same basename (file before dir)', async () => {
         const root = vscode.Uri.file('/home/user/project');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'app', type: vscode.FileType.Directory },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app.json', vscode.FileType.File],
+                ['app', vscode.FileType.Directory],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -245,20 +264,17 @@ invalid-line
         const root = vscode.Uri.file('/home/user/project');
         const target = vscode.Uri.file('/tmp/target');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app', type: vscode.FileType.Directory },
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'app.ts', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app', vscode.FileType.Directory],
+                ['app.json', vscode.FileType.File],
+                ['app.ts', vscode.FileType.File],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
         const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
         const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();

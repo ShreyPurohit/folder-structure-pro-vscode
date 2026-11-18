@@ -1,6 +1,6 @@
-import ignore from 'ignore';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { traverseFolderStructure } from '@folder-structure-pro/core';
 import { ERROR_MESSAGES } from '../constants';
 import { FileLeaf, FolderStructure, OutputFormat, TreeNode } from '../types';
 import {
@@ -14,73 +14,16 @@ import { TreeParser } from '../utils/parser';
 import { FileSystemService } from './fileSystem';
 import { PlainTextFormatter, JsonFormatter } from './formatters';
 import { GitignoreService } from './gitignore';
+import { VSCodeFileSystemAdapter } from '../adapters/vscodeFileSystem';
 
 export class StructureService {
-    private static relativeFromRoot(rootUri: vscode.Uri, targetUri: vscode.Uri): string {
-        const root = rootUri.path.replace(/\/+$/, '');
-        const target = targetUri.path;
-        if (!target.startsWith(root)) {
-            return target.replace(/^\/+/, '');
-        }
-        return target.slice(root.length).replace(/^\/+/, '');
-    }
-
-    private static uriBaseName(uri: vscode.Uri): string {
-        const segments = uri.path.split('/').filter(Boolean);
-        return segments[segments.length - 1] ?? uri.path;
-    }
-
     static async getStructure(dirUri: vscode.Uri): Promise<FolderStructure> {
-        const ignoreRules = await GitignoreService.loadRules(dirUri);
-        const ig = ignore().add(ignoreRules);
-        const folderName = this.uriBaseName(dirUri);
-        return {
-            [folderName]: await this.buildStructure(dirUri, ig, dirUri),
-        };
-    }
-
-    static async buildStructure(
-        dirUri: vscode.Uri,
-        ig: ReturnType<typeof ignore>,
-        rootUri: vscode.Uri,
-    ): Promise<FolderStructure> {
-        const structure: FolderStructure = {};
-        const entries = await FileSystemService.readdir(dirUri);
-
-        for (const entry of entries) {
-            const fullUri = vscode.Uri.joinPath(dirUri, entry.name);
-            const relFromRoot = this.relativeFromRoot(rootUri, fullUri);
-
-            if (entry.name.startsWith('.') || ig.ignores(relFromRoot)) {
-                continue;
-            }
-
-            const isDir = (entry.type & vscode.FileType.Directory) === vscode.FileType.Directory;
-            if (isDir) {
-                if (isFileLeaf(structure[entry.name])) {
-                    const prevLeaf = structure[entry.name] as FileLeaf;
-                    delete structure[entry.name];
-                    const fullNames = fileLeafToFileNames(entry.name, prevLeaf);
-                    for (const fn of fullNames) {
-                        structure[fn] = null;
-                    }
-                }
-                structure[entry.name] = await this.buildStructure(fullUri, ig, rootUri);
-            } else {
-                const ext = this.fileTypeFor(entry.name);
-                const base = this.baseNameFor(entry.name);
-                if (isDirectoryNode(structure[base])) {
-                    structure[entry.name] = null;
-                } else {
-                    structure[base] = mergeFileExtension(
-                        isFileLeaf(structure[base]) ? structure[base] : undefined,
-                        ext,
-                    );
-                }
-            }
-        }
-
-        return structure;
+        const fileSystem = new VSCodeFileSystemAdapter();
+        return traverseFolderStructure(
+            fileSystem,
+            fileSystem.toFolderPath(dirUri),
+            GitignoreService.getTraversalOptions(),
+        );
     }
 
     static formatStructure(structure: FolderStructure, format: OutputFormat): string {
