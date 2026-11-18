@@ -1,8 +1,15 @@
 # Folder Structure Pro — Architecture Research
 
 **Checked:** 2026-11-18  
-**Purpose:** Preserve the research and finalized architectural decisions for the future CLI and shared-core implementation.  
-**Status:** Planning only; no implementation or package changes are included here.
+**Purpose:** Preserve research, finalized architectural decisions, implementation status, and the remaining roadmap.
+**Status:** Active architecture and implementation record.
+
+## Implementation status (2026-11-19)
+
+- **Completed:** pnpm workspace and private shared-core extraction, including shared models, traversal, filtering, parsing, formatting, and validation.
+- **Completed:** VS Code adapter and extension migration, with extension regression verification and the existing VSIX workflow retained.
+- **Completed:** CLI Step 3A foundation, including the Node filesystem adapter, exclusive-create capability, ESM/esbuild executable bundle, and adapter/build tests.
+- **Remaining:** CLI MVP interaction and copy/export behavior, followed by the later roadmap phases below. No CLI prompts or user-facing commands are implemented yet.
 
 ## Finalized decisions
 
@@ -212,12 +219,12 @@ Values below are the research snapshot, not a promise that versions remain lates
 
 ## Implementation roadmap
 
-1. **Workspace and core extraction:** establish pnpm workspace; define core interface and extract pure model, parsing, formatting, filtering and traversal behavior. No adapters belong in core.
-2. **Extension migration/regression:** implement VS Code adapter in existing source; preserve settings, remote/virtual `workspace.fs`, commands, webview and VSIX workflow. Verify regression tests.
-3. **CLI copy/export:** implement Node adapter, Clack boundary, commands, output handling, filters and non-interactive behavior. Verify temporary-directory and executable tests.
-4. **Safe structure creation:** add parser-driven creation plans, target validation, symlink preflight, conflict resolution, dry-run, Node exclusive writes and explicit VS Code best-effort limitations.
-5. **Additional CLI features:** consider filename and line-reference commands only after MVP.
-6. **Packaging/release:** verify tarball, clean installs, Windows/macOS/Linux, `npx`, `pnpm dlx`, independent VSIX/CLI release and provenance.
+1. **Workspace and core extraction — completed:** pnpm workspace and pure shared models, parsing, formatting, validation, filtering, and traversal are in `packages/core`.
+2. **Extension migration/regression — completed:** the extension uses the shared core through its VS Code filesystem adapter while preserving remote/virtual `workspace.fs`, commands, webview, and VSIX workflow.
+3. **CLI copy/export — in progress:** Step 3A is implemented (Node adapter, ESM executable build, and tests). Remaining work is the Clack boundary, copy/export commands, output handling, filtering, and non-interactive behavior.
+4. **Safe structure creation — remaining:** add parser-driven creation plans, target validation, symlink preflight, conflict resolution, dry-run, Node exclusive writes, and explicit VS Code best-effort limitations.
+5. **Additional CLI features — remaining:** consider filename and line-reference commands only after the MVP.
+6. **Packaging/release — remaining:** verify tarball, clean installs, Windows/macOS/Linux, `npx`, `pnpm dlx`, independent VSIX/CLI release, and provenance.
 
 ## Remaining limitations and implementation checks
 

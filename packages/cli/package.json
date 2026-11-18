@@ -13,9 +13,12 @@
         "dist"
     ],
     "scripts": {
-        "build": "pnpm --filter @folder-structure-pro/core build && node esbuild.mjs",
-        "check-types": "pnpm --filter @folder-structure-pro/core build && tsc --noEmit -p tsconfig.json",
-        "test": "pnpm run build && vitest run --config vitest.config.ts"
+        "build": "pnpm --filter @folder-structure-pro/core build && pnpm run build:bundle",
+        "build:bundle": "node esbuild.mjs",
+        "check-types": "pnpm --filter @folder-structure-pro/core build && pnpm run check-types:built",
+        "check-types:built": "tsc --noEmit -p tsconfig.json",
+        "test": "pnpm run build && pnpm run test:built",
+        "test:built": "vitest run --config vitest.config.ts"
     },
     "devDependencies": {
         "@folder-structure-pro/core": "workspace:*"
