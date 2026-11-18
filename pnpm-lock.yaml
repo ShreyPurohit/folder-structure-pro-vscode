@@ -35,6 +35,9 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.5.6
         version: 5.5.7(eslint-config-prettier@10.1.8(eslint@9.39.5))(eslint@9.39.5)(prettier@3.10.1)
+      ignore:
+        specifier: ^7.0.16
+        version: 7.0.16
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
