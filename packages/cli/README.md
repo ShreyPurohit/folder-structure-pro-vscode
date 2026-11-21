@@ -1,7 +1,9 @@
 # Folder Structure Pro CLI
 
-The CLI currently provides an interactive folder-structure export workflow. It
-supports plain-text and JSON output, clipboard copy, and UTF-8 file export.
+The CLI currently provides interactive folder-structure copy/export and
+directory-structure creation. Copy/export supports plain-text and JSON output,
+clipboard copy, and UTF-8 file export. Creation reads the existing plain-text
+tree or JSON structure formats and creates directories and empty files.
 
 ## Requirements
 
@@ -18,9 +20,32 @@ pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
 ```
 
-The initial prompt uses the current working directory as its default target.
-Choose an output format, filtering options, and then copy the result or export
-it to a file.
+Choose whether to copy/export a structure or create one. Copy/export defaults
+to the current working directory; select an output format and filtering
+options, then copy to the clipboard or export to a file. Creation asks for an
+input structure file and an existing destination directory, then shows a
+bounded plan preview before asking for confirmation.
+
+For example, a plain-text input begins with a header line (the parser ignores
+the first line), followed by tree entries:
+
+```text
+Directory structure:
+└── app/
+    ├── index.ts
+    └── README
+```
+
+JSON input uses nested objects for directories and string, string-array, or
+`null` values for file entries. Both formats are parsed and validated by the
+shared core. Invalid plain-text tree lines, unsafe names, duplicate paths,
+type collisions, and unsupported destination metadata stop creation before
+any filesystem changes.
+
+Existing matching directories are reused. Existing regular files can be
+skipped (preserving their contents) or explicitly replaced with empty files;
+the complete operation must then be confirmed. Directories, symbolic links,
+and entries with unknown metadata are never replaced.
 
 ## Filtering behavior
 
@@ -52,5 +77,11 @@ filename, not the content write; a failed write may leave an incomplete file.
 - The preview is bounded and may show only the beginning of large structures.
 - Only the root `.gitignore` is used, matching shared-core behavior.
 - Export does not create parent directories.
-- Structure creation, batch processing, configuration files, and watch mode
-  are not implemented.
+- Creation is not atomic. A filesystem failure can leave completed earlier
+  changes in place; automatic rollback is intentionally not attempted.
+- Node filesystem checks and writes cannot eliminate all time-of-check/time-of-
+  use races. The destination itself and planned entries are revalidated, but a
+  concurrent change between validation and an operation can still affect it.
+- The CLI does not create the destination directory. It supports interactive
+  use only; batch processing, configuration files, and watch mode are not
+  implemented.

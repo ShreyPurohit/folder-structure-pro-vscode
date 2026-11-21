@@ -10,7 +10,8 @@
 - **Completed:** VS Code adapter and extension migration, with extension regression verification and the existing VSIX workflow retained.
 - **Completed:** CLI Step 3A foundation, including the Node filesystem adapter, exclusive-create capability, ESM/esbuild executable bundle, and adapter/build tests.
 - **Completed:** CLI Step 3B interactive copy/export MVP, with shared-core traversal/formatting, independent filters, bounded preview, clipboard handling, and safe file conflict handling.
-- **Remaining:** Later roadmap phases below. Non-interactive commands, structure creation, and release are not implemented.
+- **Completed:** CLI Step 3C interactive structure creation, with shared-core parsing, validation, planning, conflict handling, revalidation, and exclusive creation of new files.
+- **Remaining:** Later roadmap phases below. Non-interactive commands and release are not implemented.
 
 ## Finalized decisions
 
@@ -21,7 +22,7 @@
 - Keep the VS Code filesystem adapter in the existing extension source.
 - Core defines the filesystem interface and shared logic only; neither adapter is imported into core.
 - Use `@clack/prompts` for terminal interaction, isolated behind the CLI presentation layer.
-- Start the CLI with `copy` and `export`, plain text and JSON, clipboard, stdout/file output, filtering and non-interactive use. Add structure creation later.
+- The interactive CLI supports copy/export and structure creation using the shared core. Non-interactive commands remain out of scope.
 - Use esbuild initially; bundle the private core into both consumers. Do not publish the core unless a real external API need emerges.
 - CLI package is ESM; the existing VS Code extension remains as currently built.
 
@@ -112,14 +113,12 @@ Keep traversal validation distinct from structure-creation validation. Export sh
 
 ## Parsing compatibility
 
-Preserve accepted existing formats: `Directory structure:` header, arbitrary first-line headers, a tree-shaped first line, Unicode/ASCII connectors, four-space/vertical-guide indentation, decorative separators, and supported inline comments.
+The existing plain-text parser ignores the first line unconditionally as the root/header line. Subsequent lines support Unicode and ASCII connectors, four-space/vertical-guide indentation, and supported inline comments.
 
-- A first line equal to `Directory structure:` (case-insensitive, optional surrounding whitespace) is an explicit header.
-- A valid tree-shaped first line is a root entry, not a header.
-- An arbitrary first line may be treated as an optional header for backward compatibility, but header-only or empty input is invalid.
-- Malformed tree entries must be reported, not silently discarded.
-- Indentation gaps are invalid.
-- Preview and creation must call the same parser and use the same validation result. Creation performs no writes if parsing has errors.
+- Keep the first-line behavior; creation must not reinterpret a tree-shaped first line as an entry.
+- Malformed connector lines and indentation gaps are reported in `invalidLines`. Creation rejects the complete input if any invalid lines are reported; it must not use a partial parse.
+- JSON creation uses the shared JSON-with-comments parser and structure validation.
+- Creation parses once, validates the complete structure, and plans only from that validated result. No filesystem mutation starts before final confirmation.
 
 ## Filtering contract
 
@@ -128,32 +127,22 @@ Keep defaults separate rather than applying overlapping exclusions from multiple
 - **CLI built-in:** `node_modules` plus a dedicated hidden-file rule, hidden entries excluded by default.
 - **VS Code:** preserve `folderStructure.ignorePatterns` and `folderStructure.respectGitignore` as-is, including the current `node_modules`, `.*` defaults.
 - **Root `.gitignore`:** read only at selected root initially, matching current extension behavior. Nested files are a future compatibility decision.
-- **CLI `--exclude`:** additive user exclusions.
-- **CLI `--hidden`:** disables only the CLI hidden-file rule; it does not override `node_modules`, `.gitignore`, or explicit `--exclude`.
+- **CLI additional ignore patterns:** additive user exclusions.
+- **CLI hidden option:** disables only the built-in hidden-file exclusion; it does not override `node_modules`, `.gitignore`, or explicit user patterns.
 - Avoid adding implicit core exclusions that duplicate CLI or extension defaults.
 
-Depth: root is depth 0; direct children are depth 1. `--depth 1` includes the root and all direct child entries, but does not descend into direct child directories. Hidden and ignore rules remain independent of depth.
+Depth: root is depth 0; direct children are depth 1. A maximum depth of 1 includes direct child entries but does not descend into their directories. Hidden and ignore rules remain independent of depth.
 
-## CLI MVP
+## Current CLI workflow
 
-Commands:
+- Interactive TTY use only; the user selects copy/export or structure creation.
+- Copy/export supports plain text or JSON, filtering, bounded preview, clipboard copy, and UTF-8 file export.
+- Creation accepts a plain-text tree or JSON structure file, validates and previews a bounded plan, then asks for conflict handling and final confirmation.
+- Existing matching directories are reused. Existing regular files can be skipped or explicitly replaced with empty files. Symlinks, unknown metadata, and file/directory mismatches block the operation.
+- stdout is not used for structure data in this interactive-only MVP. Expected errors are shown without stack traces.
+- Clack remains behind the CLI presentation abstraction. Cancellation is handled centrally; prompt helpers do not call `process.exit()`.
 
-- `folder-structure-pro`: interactive operation selection in a TTY.
-- `copy [path]`: generate structure and copy to clipboard.
-- `export [path]`: generate structure and write to stdout or `--output <path>`.
-
-Options: `--format text|json`, `--output <path|->`, `--depth <n>`, repeatable `--exclude <pattern>`, `--hidden`, `--no-gitignore`, `--no-interactive`, `--help`, `--version`.
-
-Do not add `--json`, `--quiet`, `--verbose`, or `--include` in the MVP. stdout is reserved for exported structure data; diagnostics go to stderr. `copy` never emits the generated structure to stdout.
-
-Clipboard failure:
-
-- Interactive: show the error and offer an explicit stdout/export alternative.
-- Non-interactive: report to stderr and exit nonzero; do not silently fall back to stdout.
-
-No arguments in a non-TTY environment prints help and returns an argument/usage error. Missing required options may prompt only when interactive mode is enabled. CI must never prompt.
-
-Use `@clack/prompts` only behind a CLI presentation abstraction. Handle cancellation centrally; do not call `process.exit()` inside prompt helpers.
+Non-interactive commands, stdout export, and CLI flags are not implemented. Non-TTY startup exits with a usage message instead of prompting.
 
 ## Workspace and packaging
 
@@ -223,14 +212,15 @@ Values below are the research snapshot, not a promise that versions remain lates
 1. **Workspace and core extraction — completed:** pnpm workspace and pure shared models, parsing, formatting, validation, filtering, and traversal are in `packages/core`.
 2. **Extension migration/regression — completed:** the extension uses the shared core through its VS Code filesystem adapter while preserving remote/virtual `workspace.fs`, commands, webview, and VSIX workflow.
 3. **CLI copy/export — completed:** Steps 3A–3B provide the Node adapter and ESM executable foundation, Clack interaction, shared-core copy/export, filtering, preview, clipboard, and file output. Non-interactive commands and additional CLI functionality remain out of scope.
-4. **Safe structure creation — remaining:** add parser-driven creation plans, target validation, symlink preflight, conflict resolution, dry-run, Node exclusive writes, and explicit VS Code best-effort limitations.
+4. **Safe structure creation — completed:** Step 3C adds parser-driven validation and creation plans, destination and entry metadata checks, bounded preview, explicit replace/skip/cancel handling, final confirmation, revalidation, and exclusive Node file creation. The existing VS Code extension behavior remains unchanged.
 5. **Additional CLI features — remaining:** consider filename and line-reference commands only after the MVP.
 6. **Packaging/release — remaining:** verify tarball, clean installs, Windows/macOS/Linux, `npx`, `pnpm dlx`, independent VSIX/CLI release, and provenance.
 
 ## Remaining limitations and implementation checks
 
 - VS Code provider link metadata and atomic behavior vary; preserve `unknown` and do not imply native guarantees.
-- Node symlink preflight does not eliminate races.
+- CLI structure creation is not atomic. Earlier completed changes can remain after a later operation fails; there is no automatic rollback.
+- Node symlink preflight and revalidation do not eliminate time-of-check/time-of-use races. The existing filesystem contract can verify the destination entry and planned paths but does not provide a race-free tree transaction or guarantee that ancestor path components contain no symlinks.
 - Root-only `.gitignore` is retained initially; nested semantics require separate design and tests.
 - Package name availability and clipboard implementation remain to be verified before release.
 - Confirm actual dependency engine constraints and workspace bundling behavior during implementation.

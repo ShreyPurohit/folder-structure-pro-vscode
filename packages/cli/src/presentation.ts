@@ -13,6 +13,9 @@ import {
 export const CANCELLED = { kind: 'cancelled' } as const;
 export type Cancelled = typeof CANCELLED;
 export type PromptResult<T> = T | Cancelled;
+export type CliOperation = 'copy' | 'create';
+export type StructureInputFormat = 'text' | 'json';
+export type FileConflictChoice = 'replace' | 'skip' | 'cancel';
 
 export interface CliFilters {
     includeHidden: boolean;
@@ -21,6 +24,7 @@ export interface CliFilters {
 
 export interface CliPrompts {
     intro(message: string): void;
+    chooseOperation(): Promise<PromptResult<CliOperation>>;
     chooseTarget(initialValue: string): Promise<PromptResult<string>>;
     chooseFormat(): Promise<PromptResult<'text' | 'json'>>;
     chooseFilters(): Promise<PromptResult<CliFilters>>;
@@ -29,6 +33,13 @@ export interface CliPrompts {
     chooseDestination(): Promise<PromptResult<'clipboard' | 'file'>>;
     enterOutputPath(initialValue: string): Promise<PromptResult<string>>;
     confirmOverwrite(filePath: string): Promise<PromptResult<boolean>>;
+    chooseStructureFormat(): Promise<PromptResult<StructureInputFormat>>;
+    enterStructurePath(initialValue: string): Promise<PromptResult<string>>;
+    enterDestinationDirectory(initialValue: string): Promise<PromptResult<string>>;
+    chooseFileConflictResolution(
+        existingFileCount: number,
+    ): Promise<PromptResult<FileConflictChoice>>;
+    confirmStructureCreation(summary: string): Promise<PromptResult<boolean>>;
     showPreview(preview: string, summary: string): void;
     error(message: string): void;
     cancel(message: string): void;
@@ -38,6 +49,16 @@ export interface CliPrompts {
 export function createCliPrompts(): CliPrompts {
     return {
         intro,
+        async chooseOperation() {
+            const result = await select({
+                message: 'What would you like to do?',
+                options: [
+                    { value: 'copy', label: 'Copy or export a folder structure' },
+                    { value: 'create', label: 'Create directories and empty files' },
+                ],
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
         async chooseTarget(initialValue) {
             const result = await text({
                 message: 'Directory to scan',
@@ -125,6 +146,63 @@ export function createCliPrompts(): CliPrompts {
         async confirmOverwrite(filePath) {
             const result = await confirm({
                 message: `Overwrite ${filePath}?`,
+                initialValue: false,
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        async chooseStructureFormat() {
+            const result = await select({
+                message: 'Structure file format',
+                options: [
+                    { value: 'text', label: 'Plain text tree' },
+                    { value: 'json', label: 'JSON' },
+                ],
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        async enterStructurePath(initialValue) {
+            const result = await text({
+                message: 'Path to the structure file',
+                placeholder: initialValue,
+                initialValue,
+                validate(value) {
+                    if (value === undefined || !value.trim()) {
+                        return 'Enter a path to a structure file.';
+                    }
+                },
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        async enterDestinationDirectory(initialValue) {
+            const result = await text({
+                message: 'Existing destination directory',
+                placeholder: initialValue,
+                initialValue,
+                validate(value) {
+                    if (value === undefined || !value.trim()) {
+                        return 'Enter an existing destination directory.';
+                    }
+                },
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        async chooseFileConflictResolution(existingFileCount) {
+            const result = await select({
+                message: `${existingFileCount} regular file(s) already exist`,
+                options: [
+                    {
+                        value: 'replace',
+                        label: 'Replace existing regular files with empty files',
+                    },
+                    { value: 'skip', label: 'Skip existing files and preserve their contents' },
+                    { value: 'cancel', label: 'Cancel creation' },
+                ],
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        async confirmStructureCreation(summary) {
+            const result = await confirm({
+                message: `Create this structure? ${summary}`,
                 initialValue: false,
             });
             return isCancel(result) ? CANCELLED : result;

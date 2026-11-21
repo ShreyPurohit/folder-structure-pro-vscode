@@ -1,9 +1,15 @@
 import {
     FolderFileSystemError,
+    executeStructureCreation,
     formatJson,
     formatPlainText,
+    parseJsonWithComments,
+    parsePlainTextToStructure,
+    planStructureCreation,
+    StructureCreationExecutionError,
     traverseFolderStructure,
     type FolderStructure,
+    type PlannedCreationEntry,
 } from '@folder-structure-pro/core';
 import * as path from 'node:path';
 import { systemClipboard, type ClipboardAdapter } from './adapters/clipboard.js';
@@ -81,10 +87,55 @@ export function createBoundedPreview(content: string, maxLines = 12, maxCharacte
     return lines.join('\n');
 }
 
+function formatCreationPreview(entries: readonly PlannedCreationEntry[]): string {
+    return entries
+        .map((entry) => {
+            const action =
+                entry.status === 'missing'
+                    ? 'create'
+                    : entry.status === 'existing-directory'
+                      ? 'reuse'
+                      : 'conflict';
+            const suffix = entry.kind === 'directory' ? '/' : '';
+            return `[${action}] ${entry.relativePath}${suffix}`;
+        })
+        .join('\n');
+}
+
+function creationSummary(entries: readonly PlannedCreationEntry[], conflictCount: number): string {
+    const directories = entries.filter((entry) => entry.kind === 'directory');
+    const files = entries.filter((entry) => entry.kind === 'file');
+    return `${directories.filter((entry) => entry.status === 'missing').length} directories to create, ${directories.filter((entry) => entry.status === 'existing-directory').length} directories to reuse, ${files.filter((entry) => entry.status === 'missing').length} files to create, ${conflictCount} existing file conflicts`;
+}
+
+function countLabel(count: number, singular: string): string {
+    const plural = singular.endsWith('y') ? `${singular.slice(0, -1)}ies` : `${singular}s`;
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatExecutionError(error: StructureCreationExecutionError): string {
+    const cause =
+        error.cause instanceof FolderFileSystemError
+            ? `${error.cause.message} (${error.cause.code})`
+            : error.cause instanceof Error
+              ? error.cause.message
+              : 'Filesystem operation failed.';
+    return `${error.message}\nCause: ${cause}`;
+}
+
 export async function runCli(dependencies: CliDependencies): Promise<number> {
     const { fileSystem, clipboard, prompts, cwd } = dependencies;
     try {
-        prompts.intro('Generate and copy or export a folder structure');
+        prompts.intro('Folder Structure Pro');
+        const operation = await prompts.chooseOperation();
+        if (isCancelled(operation)) {
+            prompts.cancel('Operation cancelled.');
+            return 0;
+        }
+        if (operation === 'create') {
+            return await runStructureCreation(dependencies);
+        }
+
         const requestedTarget = await prompts.chooseTarget(cwd);
         if (isCancelled(requestedTarget)) {
             prompts.cancel('Operation cancelled.');
@@ -191,14 +242,97 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
         return 0;
     } catch (error) {
         const detail =
-            error instanceof FolderFileSystemError
-                ? `${error.message} (${error.code})`
-                : error instanceof Error
-                  ? error.message
-                  : 'An unexpected error occurred.';
+            error instanceof StructureCreationExecutionError
+                ? formatExecutionError(error)
+                : error instanceof FolderFileSystemError
+                  ? `${error.message} (${error.code})`
+                  : error instanceof Error
+                    ? error.message
+                    : 'An unexpected error occurred.';
         prompts.error(detail);
         return 1;
     }
+}
+
+async function runStructureCreation(dependencies: CliDependencies): Promise<number> {
+    const { fileSystem, prompts, cwd } = dependencies;
+    const format = await prompts.chooseStructureFormat();
+    if (isCancelled(format)) {
+        prompts.cancel('Operation cancelled.');
+        return 0;
+    }
+
+    const structurePathResult = await prompts.enterStructurePath(
+        path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
+    );
+    if (isCancelled(structurePathResult)) {
+        prompts.cancel('Operation cancelled.');
+        return 0;
+    }
+
+    const structureFilePath = fileSystem.toFolderPath(
+        path.resolve(cwd, structurePathResult.trim()),
+    );
+    const structureFileMetadata = await fileSystem.lstat(structureFilePath);
+    if (
+        structureFileMetadata.kind !== 'file' ||
+        structureFileMetadata.symlink !== 'not-a-symlink'
+    ) {
+        throw new FolderFileSystemError(
+            'INVALID_PATH',
+            'The structure input must be a regular, non-symbolic-link file.',
+        );
+    }
+
+    const content = await fileSystem.readText(structureFilePath);
+    let structure: unknown;
+    if (format === 'text') {
+        const parsed = parsePlainTextToStructure(content);
+        if (parsed.invalidLines.length > 0) {
+            throw new Error(
+                `Invalid plain-text structure lines: ${parsed.invalidLines.join(', ')}. No files or directories were created.`,
+            );
+        }
+        structure = parsed.structure;
+    } else {
+        structure = parseJsonWithComments(content);
+    }
+
+    const destinationResult = await prompts.enterDestinationDirectory(cwd);
+    if (isCancelled(destinationResult)) {
+        prompts.cancel('Operation cancelled.');
+        return 0;
+    }
+    const destination = fileSystem.toFolderPath(path.resolve(cwd, destinationResult.trim() || cwd));
+    const plan = await planStructureCreation(fileSystem, destination, structure);
+    const summary = creationSummary(plan.entries, plan.conflicts.length);
+    prompts.showPreview(createBoundedPreview(formatCreationPreview(plan.entries)), summary);
+
+    let conflictResolution: 'replace' | 'skip' | 'cancel' = 'skip';
+    if (plan.conflicts.length > 0) {
+        const choice = await prompts.chooseFileConflictResolution(plan.conflicts.length);
+        if (isCancelled(choice) || choice === 'cancel') {
+            prompts.cancel('Structure creation cancelled; no changes were made.');
+            return 0;
+        }
+        conflictResolution = choice;
+    }
+
+    const confirmation = await prompts.confirmStructureCreation(
+        conflictResolution === 'replace' && plan.conflicts.length > 0
+            ? `${summary}. ${plan.conflicts.length} existing regular file(s) will be emptied.`
+            : summary,
+    );
+    if (isCancelled(confirmation) || !confirmation) {
+        prompts.cancel('Structure creation cancelled; no changes were made.');
+        return 0;
+    }
+
+    const result = await executeStructureCreation(fileSystem, plan, conflictResolution);
+    prompts.outro(
+        `Created ${countLabel(result.directoriesCreated, 'directory')} and ${countLabel(result.filesCreated, 'file')}; reused ${countLabel(result.directoriesReused, 'directory')}, replaced ${countLabel(result.filesReplaced, 'file')}, and skipped ${countLabel(result.filesSkipped, 'file')}.`,
+    );
+    return 0;
 }
 
 export async function runExecutable(options: RunExecutableOptions = {}): Promise<number> {

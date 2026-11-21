@@ -15,6 +15,10 @@ const TREE_SYMBOLS = {
     INDENT: '    ',
 } as const;
 
+function createFolderStructure(): FolderStructure {
+    return Object.create(null) as FolderStructure;
+}
+
 class LineParser {
     static countIndentation(rawLine: string): number {
         let i = 0;
@@ -123,14 +127,15 @@ export function parsePlainTextToStructure(
 ): PlainTextParseResult {
     const lines = content.split('\n');
     const pathStack: string[] = [];
-    const structure: FolderStructure = {};
+    const structure = createFolderStructure();
     const invalidLines: number[] = [];
+    let indentationOffset: number | undefined;
     const getFileType = options.getFileType ?? fileTypeFor;
     const getBaseName = options.getBaseName ?? baseNameFor;
 
     const getContext = (stack: string[]): FolderStructure =>
         stack.reduce<FolderStructure>((context, segment) => {
-            const next = (context[segment] ?? {}) as FolderStructure;
+            const next = (context[segment] ?? createFolderStructure()) as FolderStructure;
             context[segment] = next;
             return next;
         }, structure);
@@ -151,7 +156,20 @@ export function parsePlainTextToStructure(
             return;
         }
 
-        if (node.level === 0) {
+        if (indentationOffset === undefined) {
+            if (node.level > 1) {
+                invalidLines.push(index + 1);
+                return;
+            }
+            indentationOffset = node.level;
+        }
+        const relativeLevel = node.level - indentationOffset;
+        if (relativeLevel < 0 || relativeLevel > pathStack.length) {
+            invalidLines.push(index + 1);
+            return;
+        }
+
+        if (relativeLevel === 0) {
             pathStack.length = 0;
             const context = getContext([]);
             if (node.isDirectory) {
@@ -164,7 +182,7 @@ export function parsePlainTextToStructure(
                         }
                     }
                 }
-                context[node.name] = context[node.name] ?? {};
+                context[node.name] = context[node.name] ?? createFolderStructure();
                 pathStack.push(node.name);
             } else {
                 const type = getFileType(node.name);
@@ -174,11 +192,7 @@ export function parsePlainTextToStructure(
             return;
         }
 
-        if (node.level > pathStack.length && node.level !== pathStack.length + 1) {
-            invalidLines.push(index + 1);
-            return;
-        }
-        while (pathStack.length > node.level) {
+        while (pathStack.length > relativeLevel) {
             pathStack.pop();
         }
         const context = getContext(pathStack);
@@ -192,7 +206,7 @@ export function parsePlainTextToStructure(
                     }
                 }
             }
-            context[node.name] = context[node.name] ?? {};
+            context[node.name] = context[node.name] ?? createFolderStructure();
             pathStack.push(node.name);
         } else {
             const type = getFileType(node.name);

@@ -49,6 +49,7 @@ describe('CLI bundle', () => {
 
             const prompts = {
                 intro: () => {},
+                chooseOperation: async () => 'copy' as const,
                 chooseTarget: async () => '',
                 chooseFormat: async () => 'text' as const,
                 chooseFilters: async () => ({
@@ -60,6 +61,11 @@ describe('CLI bundle', () => {
                 chooseDestination: async () => 'clipboard' as const,
                 enterOutputPath: async () => 'output.txt',
                 confirmOverwrite: async () => false,
+                chooseStructureFormat: async () => 'text' as const,
+                enterStructurePath: async () => 'structure.txt',
+                enterDestinationDirectory: async () => '',
+                chooseFileConflictResolution: async () => 'skip' as const,
+                confirmStructureCreation: async () => false,
                 showPreview: () => {},
                 error: vi.fn(),
                 cancel: vi.fn(),
@@ -104,6 +110,34 @@ describe('CLI bundle', () => {
             ).resolves.toBe(0);
             expect(clipboard.write).toHaveBeenCalledWith(expect.stringContaining('hello.txt'));
             expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining('Copied 1 entry'));
+
+            const structurePath = path.join(temporaryDirectory, 'creation-input.txt');
+            const destinationPath = path.join(temporaryDirectory, 'created');
+            await fs.writeFile(structurePath, 'Directory structure:\n└── app/\n    └── index.ts');
+            await fs.mkdir(destinationPath);
+            const creationPrompts = {
+                ...prompts,
+                chooseOperation: async () => 'create' as const,
+                chooseStructureFormat: async () => 'text' as const,
+                enterStructurePath: async () => structurePath,
+                enterDestinationDirectory: async () => destinationPath,
+                confirmStructureCreation: async () => true,
+                outro: vi.fn(),
+            };
+            await expect(
+                bundled.runCli({
+                    fileSystem,
+                    clipboard,
+                    prompts: creationPrompts,
+                    cwd: temporaryDirectory,
+                }),
+            ).resolves.toBe(0);
+            await expect(
+                fs.readFile(path.join(destinationPath, 'app', 'index.ts'), 'utf8'),
+            ).resolves.toBe('');
+            expect(creationPrompts.outro).toHaveBeenCalledWith(
+                expect.stringContaining('Created 1 directory and 1 file'),
+            );
         } finally {
             await fs.rm(temporaryDirectory, { recursive: true, force: true });
         }

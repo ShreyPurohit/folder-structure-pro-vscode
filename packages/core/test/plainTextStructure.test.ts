@@ -10,7 +10,7 @@ function getDirectory(structure: FolderStructure, name: string): FolderStructure
 }
 
 describe('parsePlainTextToStructure', () => {
-    it('parses nested directories, extensionless files, and multiple file extensions', () => {
+    it('parses an unindented tree with nested directories and multiple file extensions', () => {
         const result = parsePlainTextToStructure(`Directory structure:
 └── app/
     ├── README
@@ -54,13 +54,66 @@ describe('parsePlainTextToStructure', () => {
         expect(result.structure).toEqual({ kept: 'ts' });
     });
 
+    it('preserves an initial one-level indentation offset beneath the ignored header', () => {
+        const result = parsePlainTextToStructure(`Project
+    └── app/
+        └── index.ts`);
+
+        expect(result.invalidLines).toEqual([]);
+        expect(result.structure).toEqual({ app: { index: 'ts' } });
+    });
+
+    it('ignores blank and repeated header lines before establishing the baseline', () => {
+        const result = parsePlainTextToStructure(`Project
+
+Directory structure:
+    └── app/
+        └── index.ts`);
+
+        expect(result.invalidLines).toEqual([]);
+        expect(result.structure).toEqual({ app: { index: 'ts' } });
+    });
+
+    it.each([
+        { label: 'two levels', indentation: '        ' },
+        { label: 'several levels', indentation: '                    ' },
+    ])('rejects a first valid entry indented by $label', ({ indentation }) => {
+        const result = parsePlainTextToStructure(
+            `Project\n${indentation}└── invalid.ts\n└── kept.ts`,
+        );
+
+        expect(result.invalidLines).toEqual([2]);
+        expect(result.structure).toEqual({ kept: 'ts' });
+    });
+
+    it('does not establish the baseline from an invalid connector line', () => {
+        const result = parsePlainTextToStructure(`Project
+    ├──
+    └── app/
+        └── index.ts`);
+
+        expect(result.invalidLines).toEqual([2]);
+        expect(result.structure).toEqual({ app: { index: 'ts' } });
+    });
+
+    it('rejects indentation gaps relative to the initial offset', () => {
+        const result = parsePlainTextToStructure(`Project
+    └── app/
+            ├── skipped.ts
+        └── index.ts`);
+
+        expect(result.invalidLines).toEqual([3]);
+        expect(result.structure).toEqual({ app: { index: 'ts' } });
+    });
+
     it('reports indentation gaps and malformed connector lines', () => {
         const result = parsePlainTextToStructure(`Directory structure:
 └── app/
+        └── skipped-level.ts
 │   │   │   └── deep.ts
 ├── `);
 
-        expect(result.invalidLines).toEqual([3, 4]);
+        expect(result.invalidLines).toEqual([3, 4, 5]);
     });
 
     it('preserves directory/file collisions and inline-comment behavior', () => {
@@ -84,5 +137,15 @@ describe('parsePlainTextToStructure', () => {
 └── file #draft.ts`);
 
         expect(result.structure).toEqual({ file: 'file' });
+    });
+
+    it('safely parses prototype-named path components', () => {
+        const result = parsePlainTextToStructure(`Directory structure:
+└── __proto__/
+    └── constructor.ts`);
+
+        expect(Object.getPrototypeOf(result.structure)).toBeNull();
+        expect(result.structure['__proto__']).toEqual({ constructor: 'ts' });
+        expect(Object.prototype).not.toHaveProperty('constructor.ts');
     });
 });

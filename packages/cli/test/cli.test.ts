@@ -24,6 +24,7 @@ afterEach(async () => {
 function createPrompts(overrides: Partial<CliPrompts> = {}): CliPrompts {
     return {
         intro: vi.fn(),
+        chooseOperation: vi.fn().mockResolvedValue('copy'),
         chooseTarget: vi.fn().mockResolvedValue(''),
         chooseFormat: vi.fn().mockResolvedValue('text'),
         chooseFilters: vi.fn().mockResolvedValue({
@@ -35,6 +36,11 @@ function createPrompts(overrides: Partial<CliPrompts> = {}): CliPrompts {
         chooseDestination: vi.fn().mockResolvedValue('clipboard'),
         enterOutputPath: vi.fn().mockResolvedValue('structure.txt'),
         confirmOverwrite: vi.fn().mockResolvedValue(false),
+        chooseStructureFormat: vi.fn().mockResolvedValue('text'),
+        enterStructurePath: vi.fn().mockResolvedValue('folder-structure.txt'),
+        enterDestinationDirectory: vi.fn().mockResolvedValue(''),
+        chooseFileConflictResolution: vi.fn().mockResolvedValue('skip'),
+        confirmStructureCreation: vi.fn().mockResolvedValue(false),
         showPreview: vi.fn(),
         error: vi.fn(),
         cancel: vi.fn(),
@@ -173,6 +179,7 @@ describe('CLI interaction', () => {
     });
 
     it.each([
+        ['operation', 'chooseOperation'],
         ['target', 'chooseTarget'],
         ['format', 'chooseFormat'],
         ['filters', 'chooseFilters'],
