@@ -30,8 +30,9 @@
         "build:bundle": "node esbuild.mjs",
         "check-types": "pnpm --filter @folder-structure-pro/core build && pnpm run check-types:built",
         "check-types:built": "tsc --noEmit -p tsconfig.json",
-        "validate-package": "pnpm run build && vitest run --config vitest.config.ts test/packaging.test.ts",
-        "test": "pnpm run build && pnpm run test:built",
+        "prepare-release": "node scripts/prepare-release.mjs",
+        "validate-package": "pnpm run prepare-release && vitest run --config vitest.config.ts test/packaging.test.ts",
+        "test": "pnpm run prepare-release && pnpm run test:built",
         "test:built": "vitest run --config vitest.config.ts"
     },
     "dependencies": {

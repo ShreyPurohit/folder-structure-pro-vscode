@@ -1,35 +1,22 @@
 # Folder Structure Pro CLI
 
 The CLI supports interactive and direct `copy`, `export`, and `create`
-operations. The package is `folder-structure-pro@0.1.0`; it remains private
-(`private: true`) and has not been published to npm. It declares Node.js
-`>=22.14.0`. CI validates Node.js 22.14.0 with the dedicated Ubuntu CLI
-package-validation job. The test matrix runs on Node.js 24 for Windows, Ubuntu,
-and macOS. The declared minimum has been validated for package validation on
-Ubuntu; Node.js 24 has been tested across the three operating systems. Other
-Node.js and platform combinations have not been validated.
+operations for generating, copying, exporting, and creating directory
+structures. It requires Node.js `>=22.14.0`.
 
-## Build and run
+## Installation
 
-From the repository root:
+Install the CLI globally with npm:
 
 ```sh
-pnpm --filter folder-structure-pro build
-node packages/cli/dist/index.js
+npm install --global folder-structure-pro
 ```
 
-To validate the package, run:
+Then run:
 
 ```sh
-pnpm --filter folder-structure-pro run validate-package
+folder-structure-pro --help
 ```
-
-This builds the CLI, packs a local tarball, installs it into an isolated
-temporary npm consumer, and exercises the installed executable. This local
-consumer validation does not publish the package. The test suite also runs the
-installed-package test in the Node.js 24 Windows, Ubuntu, and macOS matrix.
-Invocation through `npx`, `pnpm dlx`, or a global installation has not been
-validated.
 
 With no arguments, a TTY opens the interactive menu. In non-TTY use, provide an
 explicit command; otherwise the CLI exits with status 2 instead of prompting.

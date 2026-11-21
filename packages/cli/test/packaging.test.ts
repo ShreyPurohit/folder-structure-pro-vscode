@@ -64,12 +64,23 @@ function expectProcessSuccess(
     }
 }
 
-function runPnpm(args: string[]): string {
-    const pnpmExecutable = process.env.npm_execpath;
-    if (pnpmExecutable && /\.(?:cjs|mjs|js)$/i.test(pnpmExecutable)) {
-        return run(process.execPath, [pnpmExecutable, ...args], packageDirectory);
-    }
-    return run(pnpmExecutable || 'pnpm', args, packageDirectory);
+function runNpmPack(
+    releaseDirectory: string,
+    packedDirectory: string,
+): { status: number; stdout: string; stderr: string } {
+    const args = ['pack', '--ignore-scripts', '--pack-destination', packedDirectory];
+    const result =
+        process.platform === 'win32'
+            ? runWindowsCommand(
+                  'npm.cmd',
+                  args,
+                  releaseDirectory,
+                  SUBPROCESS_TIMEOUT_MS,
+                  process.env,
+              )
+            : runCaptured('npm', args, releaseDirectory);
+    expectProcessSuccess(result, 'npm pack of the generated release package');
+    return result;
 }
 
 function runTar(args: string[]): string {
@@ -151,12 +162,13 @@ describe('CLI package tarball', () => {
             path.join(os.tmpdir(), 'folder-structure-pro-package-'),
         );
         temporaryDirectories.push(temporaryDirectory);
+        const releaseDirectory = path.join(packageDirectory, '.release');
         const packedDirectory = path.join(temporaryDirectory, 'packed');
         const extractedDirectory = path.join(temporaryDirectory, 'extracted');
         await fs.mkdir(packedDirectory);
         await fs.mkdir(extractedDirectory);
 
-        runPnpm(['pack', '--pack-destination', packedDirectory]);
+        runNpmPack(releaseDirectory, packedDirectory);
 
         const tarballs = (await fs.readdir(packedDirectory)).filter((file) =>
             file.endsWith('.tgz'),
@@ -195,12 +207,12 @@ describe('CLI package tarball', () => {
             files?: string[];
             dependencies?: Record<string, string>;
             devDependencies?: Record<string, string>;
+            scripts?: Record<string, string>;
         };
 
         expect(manifest).toMatchObject({
             name: 'folder-structure-pro',
             version: '0.1.0',
-            private: true,
             description:
                 'Generate, copy, export, and create directory structures from the command line.',
             license: 'MIT',
@@ -218,12 +230,28 @@ describe('CLI package tarball', () => {
             bin: { 'folder-structure-pro': './dist/index.js' },
             files: ['dist', 'README.md', 'LICENSE'],
         });
+        expect(Object.keys(manifest).sort()).toEqual(
+            [
+                'name',
+                'version',
+                'description',
+                'repository',
+                'homepage',
+                'bugs',
+                'license',
+                'type',
+                'engines',
+                'bin',
+                'files',
+                'dependencies',
+            ].sort(),
+        );
+        expect(manifest.private).toBeUndefined();
+        expect(manifest.devDependencies).toBeUndefined();
+        expect(manifest.scripts).toBeUndefined();
         expect(JSON.stringify(manifest)).not.toContain('workspace:');
+        expect(JSON.stringify(manifest)).not.toContain('@folder-structure-pro/core');
         expect(manifest.dependencies).toEqual({ clipboardy: '5.3.2' });
-        expect(manifest.dependencies).not.toHaveProperty('@clack/prompts');
-        expect(manifest.dependencies).not.toHaveProperty('@folder-structure-pro/core');
-        expect(manifest.devDependencies?.['@clack/prompts']).toBe('1.9.0');
-        expect(manifest.devDependencies?.['@folder-structure-pro/core']).toBe('0.1.0');
 
         const executablePath = path.join(packageRoot, manifest.bin!['folder-structure-pro']);
         await expect(fs.access(executablePath)).resolves.toBeUndefined();
@@ -237,6 +265,9 @@ describe('CLI package tarball', () => {
         const rootLicense = await fs.readFile(path.join(repositoryRoot, 'LICENSE'));
         const packageLicense = await fs.readFile(path.join(packageRoot, 'LICENSE'));
         expect(packageLicense).toEqual(rootLicense);
+        const sourceReadme = await fs.readFile(path.join(packageDirectory, 'README.md'));
+        const packageReadme = await fs.readFile(path.join(packageRoot, 'README.md'));
+        expect(packageReadme).toEqual(sourceReadme);
 
         const consumerDirectory = path.join(temporaryDirectory, 'consumer');
         const consumerNodeModules = path.join(consumerDirectory, 'node_modules');
@@ -291,6 +322,7 @@ describe('CLI package tarball', () => {
             dependencies: { clipboardy: '5.3.2' },
             bin: { 'folder-structure-pro': './dist/index.js' },
         });
+        expect(installedManifest.dependencies).toEqual({ clipboardy: '5.3.2' });
         const installedExecutablePath = path.resolve(
             consumerPackageDirectory,
             installedManifest.bin!['folder-structure-pro'],
