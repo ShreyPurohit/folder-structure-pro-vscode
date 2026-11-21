@@ -1,87 +1,120 @@
 # Folder Structure Pro CLI
 
-The CLI currently provides interactive folder-structure copy/export and
-directory-structure creation. Copy/export supports plain-text and JSON output,
-clipboard copy, and UTF-8 file export. Creation reads the existing plain-text
-tree or JSON structure formats and creates directories and empty files.
+The CLI supports interactive and direct `copy`, `export`, and `create`
+operations. It requires Node.js `>=22.14.0`.
 
-## Requirements
+## Build and run
 
-- Node.js `>=22.14.0`
-- A terminal with interactive TTY input and output
-- Clipboard access for the copy destination
-
-## Local development
-
-From the repository root, build and run the CLI:
+From the repository root:
 
 ```sh
 pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
 ```
 
-Choose whether to copy/export a structure or create one. Copy/export defaults
-to the current working directory; select an output format and filtering
-options, then copy to the clipboard or export to a file. Creation asks for an
-input structure file and an existing destination directory, then shows a
-bounded plan preview before asking for confirmation.
+With no arguments, a TTY opens the interactive menu. In non-TTY use, provide an
+explicit command; otherwise the CLI exits with status 2 instead of prompting.
+Explicit commands never prompt.
 
-For example, a plain-text input begins with a header line (the parser ignores
-the first line), followed by tree entries:
+## Commands
 
-```text
-Directory structure:
-└── app/
-    ├── index.ts
-    └── README
+### Copy to the clipboard
+
+```sh
+folder-structure-pro copy [directory] [options]
 ```
 
-JSON input uses nested objects for directories and string, string-array, or
-`null` values for file entries. Both formats are parsed and validated by the
-shared core. Invalid plain-text tree lines, unsafe names, duplicate paths,
-type collisions, and unsupported destination metadata stop creation before
-any filesystem changes.
+```sh
+folder-structure-pro copy . --format json --depth 3 --exclude dist --exclude coverage
+folder-structure-pro copy src --hidden --no-gitignore
+```
 
-Existing matching directories are reused. Existing regular files can be
-skipped (preserving their contents) or explicitly replaced with empty files;
-the complete operation must then be confirmed. Directories, symbolic links,
-and entries with unknown metadata are never replaced.
+The directory defaults to the current working directory. `--format` accepts
+`text` or `json` (default: `text`); `--depth` is a non-negative whole number;
+`--exclude` can be repeated; `--hidden` includes hidden entries; and
+`--no-gitignore` disables root `.gitignore` filtering. `node_modules` remains
+excluded. Clipboard failures are reported on stderr and never redirect the
+structure to another destination.
+
+### Export to a file or stdout
+
+```sh
+folder-structure-pro export [directory] --output <file|->
+```
+
+```sh
+folder-structure-pro export . --output folder.txt
+folder-structure-pro export src --format json --output -
+folder-structure-pro export . --output folder.txt --force
+```
+
+The scan options are the same as `copy`. `--output` is required; `-` writes
+only the structure (and its trailing newline) to stdout. Diagnostics go to
+stderr. The output parent must already exist. Existing regular files are
+refused unless `--force` is supplied; directories, symlinks, and entries with
+unknown metadata are not overwritten. The check and write are separate:
+`--force` cannot prevent a concurrent path replacement (including a symlink
+swap) between validation and writing.
+
+### Create from a structure file
+
+```sh
+folder-structure-pro create <structure-file> --format <text|json> --yes [options]
+```
+
+```sh
+folder-structure-pro create structure.txt --format text --to ./new-project --yes
+folder-structure-pro create structure.json --format json --to . --yes --on-conflict skip
+folder-structure-pro create structure.txt --format text --to . --yes --on-conflict replace
+```
+
+The destination defaults to the current working directory and must already
+exist. Plain text keeps the existing parser contract: its first line is an
+ignored header, followed by tree entries. JSON uses the shared core parser.
+Invalid input, unsafe names, duplicate paths, type collisions, and unsupported
+destination metadata fail before creation.
+
+`--yes` is required for every direct creation. `--on-conflict` accepts:
+
+- `fail` (default): stop without changes if existing file conflicts are found.
+- `skip`: keep existing file contents and create other planned entries.
+- `replace`: replace existing regular files with empty files. Directories,
+  symlinks, and entries with unknown metadata are never replaced.
+
+Replacement therefore requires both `--on-conflict replace` and `--yes`.
+Creation is not atomic; completed operations may remain after a later failure.
+The CLI does not roll back or recursively delete user data.
+
+## Help and exit codes
+
+Use `folder-structure-pro --help` or append `--help` to a command for its
+options and examples.
+
+- `0`: success, help, or interactive cancellation.
+- `1`: execution, validation, filesystem, or clipboard failure.
+- `2`: invalid command/arguments or non-TTY invocation without a command.
 
 ## Filtering behavior
 
-- Hidden files and directories are excluded by default; they can be included
-  independently.
-- `node_modules` remains excluded even when hidden entries are included.
-- Root `.gitignore` rules are respected by default and can be disabled
-  independently.
-- Additional comma-separated ignore patterns are additive.
-- Maximum depth is optional and unlimited when left blank.
-- Directory symlinks are not traversed. A symlink selected as the scan root is
-  rejected.
+- Hidden files and directories are excluded by default; `--hidden` includes
+  them without disabling explicit exclusions or `.gitignore`.
+- `node_modules` remains excluded.
+- Root `.gitignore` rules are respected by default and can be disabled with
+  `--no-gitignore`.
+- Repeated `--exclude` patterns are additive.
+- Maximum depth is optional and unlimited when omitted.
+- Directory symlinks are not traversed; a symbolic-link scan root is rejected.
 
-## Clipboard and file export
+## Limitations
 
-Clipboard access is provided by `clipboardy`; unavailable clipboard services
-are reported as errors without claiming a successful copy.
-
-Export requires the parent directory to exist. Existing regular files require
-confirmation before replacement. New files are created exclusively to avoid
-silently replacing a file that appears during the operation. Confirmed
-overwrites use a normal write after a preflight check and are not atomic with
-respect to concurrent filesystem changes. Exclusive creation protects the
-filename, not the content write; a failed write may leave an incomplete file.
-
-## Current limitations
-
-- Interactive TTY use only; there are no non-interactive commands or flags.
-- The preview is bounded and may show only the beginning of large structures.
-- Only the root `.gitignore` is used, matching shared-core behavior.
+- Only the root `.gitignore` is used, matching shared-core behavior; nested
+  ignore-file semantics are not implemented.
 - Export does not create parent directories.
-- Creation is not atomic. A filesystem failure can leave completed earlier
-  changes in place; automatic rollback is intentionally not attempted.
 - Node filesystem checks and writes cannot eliminate all time-of-check/time-of-
-  use races. The destination itself and planned entries are revalidated, but a
-  concurrent change between validation and an operation can still affect it.
-- The CLI does not create the destination directory. It supports interactive
-  use only; batch processing, configuration files, and watch mode are not
-  implemented.
+  use races. In particular, `export --force` checks the target before writing,
+  but a concurrent path replacement (including a symlink swap) can change the
+  write target between those operations. Creation revalidates planned paths,
+  but operations are not a race-free or atomic tree transaction.
+- The destination directory is not created implicitly.
+- The CLI is not published. Configuration files, dry-run, shell completion,
+  and batch status summaries are not implemented.

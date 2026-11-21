@@ -11,7 +11,8 @@
 - **Completed:** CLI Step 3A foundation, including the Node filesystem adapter, exclusive-create capability, ESM/esbuild executable bundle, and adapter/build tests.
 - **Completed:** CLI Step 3B interactive copy/export MVP, with shared-core traversal/formatting, independent filters, bounded preview, clipboard handling, and safe file conflict handling.
 - **Completed:** CLI Step 3C interactive structure creation, with shared-core parsing, validation, planning, conflict handling, revalidation, and exclusive creation of new files.
-- **Remaining:** Later roadmap phases below. Non-interactive commands and release are not implemented.
+- **Completed:** CLI Step 3D direct `copy`, `export`, and `create` commands, with non-interactive argument validation, help, output routing, exit codes, and explicit creation conflict policies.
+- **Remaining:** Later roadmap phases below. Packaging and release are not implemented.
 
 ## Finalized decisions
 
@@ -22,7 +23,7 @@
 - Keep the VS Code filesystem adapter in the existing extension source.
 - Core defines the filesystem interface and shared logic only; neither adapter is imported into core.
 - Use `@clack/prompts` for terminal interaction, isolated behind the CLI presentation layer.
-- The interactive CLI supports copy/export and structure creation using the shared core. Non-interactive commands remain out of scope.
+- The CLI supports interactive and direct copy/export/creation using the shared core. Further CLI features remain out of scope for Step 3D.
 - Use esbuild initially; bundle the private core into both consumers. Do not publish the core unless a real external API need emerges.
 - CLI package is ESM; the existing VS Code extension remains as currently built.
 
@@ -135,14 +136,13 @@ Depth: root is depth 0; direct children are depth 1. A maximum depth of 1 includ
 
 ## Current CLI workflow
 
-- Interactive TTY use only; the user selects copy/export or structure creation.
-- Copy/export supports plain text or JSON, filtering, bounded preview, clipboard copy, and UTF-8 file export.
-- Creation accepts a plain-text tree or JSON structure file, validates and previews a bounded plan, then asks for conflict handling and final confirmation.
+- With no arguments, a TTY opens the interactive menu. Non-TTY invocation without a command exits with status 2; explicit commands never prompt.
+- Direct commands are `copy [directory]`, `export [directory] --output <file|->`, and `create <structure-file> --format <text|json> --yes`.
+- Copy/export supports plain text or JSON, filtering, clipboard copy, UTF-8 file export, and stdout-only structure output with `export --output -`.
+- Interactive creation validates and previews a bounded plan before conflict handling and final confirmation. Direct creation requires `--yes` and defaults to `--on-conflict fail`; replacing a regular file requires `--on-conflict replace`.
 - Existing matching directories are reused. Existing regular files can be skipped or explicitly replaced with empty files. Symlinks, unknown metadata, and file/directory mismatches block the operation.
-- stdout is not used for structure data in this interactive-only MVP. Expected errors are shown without stack traces.
+- `export --output -` reserves stdout for structure data; command diagnostics are written to stderr. Exit codes are 0 for success/help/cancellation, 1 for execution failures, and 2 for invalid commands/arguments or non-TTY use without a command.
 - Clack remains behind the CLI presentation abstraction. Cancellation is handled centrally; prompt helpers do not call `process.exit()`.
-
-Non-interactive commands, stdout export, and CLI flags are not implemented. Non-TTY startup exits with a usage message instead of prompting.
 
 ## Workspace and packaging
 
@@ -211,9 +211,9 @@ Values below are the research snapshot, not a promise that versions remain lates
 
 1. **Workspace and core extraction — completed:** pnpm workspace and pure shared models, parsing, formatting, validation, filtering, and traversal are in `packages/core`.
 2. **Extension migration/regression — completed:** the extension uses the shared core through its VS Code filesystem adapter while preserving remote/virtual `workspace.fs`, commands, webview, and VSIX workflow.
-3. **CLI copy/export — completed:** Steps 3A–3B provide the Node adapter and ESM executable foundation, Clack interaction, shared-core copy/export, filtering, preview, clipboard, and file output. Non-interactive commands and additional CLI functionality remain out of scope.
+3. **CLI copy/export — completed:** Steps 3A–3B provide the Node adapter and ESM executable foundation, Clack interaction, shared-core copy/export, filtering, preview, clipboard, and file output. Step 3D adds direct commands, argument/help handling, stdout export, exit codes, and non-interactive creation with explicit conflict policies.
 4. **Safe structure creation — completed:** Step 3C adds parser-driven validation and creation plans, destination and entry metadata checks, bounded preview, explicit replace/skip/cancel handling, final confirmation, revalidation, and exclusive Node file creation. The existing VS Code extension behavior remains unchanged.
-5. **Additional CLI features — remaining:** consider filename and line-reference commands only after the MVP.
+5. **Additional CLI features — remaining:** consider dry-run, configuration, shell completion, and other features only after the MVP.
 6. **Packaging/release — remaining:** verify tarball, clean installs, Windows/macOS/Linux, `npx`, `pnpm dlx`, independent VSIX/CLI release, and provenance.
 
 ## Remaining limitations and implementation checks

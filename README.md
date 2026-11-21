@@ -75,18 +75,20 @@
 
 ### CLI (development preview)
 
-The CLI package currently provides interactive folder-structure copy/export
-and structure creation workflows and requires Node.js `>=22.14.0`:
+The CLI package provides interactive workflows plus direct `copy`, `export`,
+and `create` commands and requires Node.js `>=22.14.0`:
 
 ```sh
 pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
+node packages/cli/dist/index.js export . --output -
+node packages/cli/dist/index.js create structure.json --format json --yes
 ```
 
-It supports plain-text or JSON output, clipboard copy, UTF-8 file export, and
-creation from validated plain-text or JSON structures. See
-[the CLI README](./packages/cli/README.md) for filtering defaults, creation
-safety, and limitations. It is not yet published.
+It supports plain-text or JSON output, clipboard copy, stdout/file export, and
+confirmed creation from validated plain-text or JSON structures. See
+[the CLI README](./packages/cli/README.md) for command options, filtering
+defaults, safety behavior, and limitations. It is not yet published.
 
 <hr style="border: 2px solid black; width: 100%; " />
 

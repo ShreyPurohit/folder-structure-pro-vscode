@@ -2,7 +2,22 @@ import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 import { runExecutable } from './cli.js';
 
-export { runCli, type CliDependencies } from './cli.js';
+export {
+    runCli,
+    runExecutable,
+    type CliDependencies,
+    type CliWriter,
+    type ExecutableDependencies,
+    type RunExecutableOptions,
+} from './cli.js';
+export {
+    CliArgumentError,
+    formatCliHelp,
+    parseCliArguments,
+    type ConflictPolicy,
+    type ParsedCliArguments,
+    type ScanCommandOptions,
+} from './arguments.js';
 export { NodeFileSystemAdapter } from './adapters/nodeFileSystem.js';
 export {
     CANCELLED,

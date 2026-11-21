@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FolderFileSystemError } from '@folder-structure-pro/core';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 import { CANCELLED, type CliPrompts } from '../src/presentation.js';
-import { runCli } from '../src/cli.js';
+import { runCli, runExecutable } from '../src/cli.js';
 
 let temporaryDirectory: string | undefined;
 
@@ -59,6 +59,30 @@ async function createSampleProject(root: string): Promise<void> {
 }
 
 describe('CLI interaction', () => {
+    it('opens the interactive menu for an argument-free TTY invocation', async () => {
+        const cwd = await createTemporaryDirectory();
+        const prompts = createPrompts({
+            chooseOperation: vi.fn().mockResolvedValue(CANCELLED),
+        });
+
+        await expect(
+            runExecutable({
+                argv: [],
+                stdinIsTTY: true,
+                stdoutIsTTY: true,
+                dependencies: {
+                    fileSystem: new NodeFileSystemAdapter(),
+                    clipboard: { write: vi.fn() },
+                    prompts,
+                    cwd,
+                },
+            }),
+        ).resolves.toBe(0);
+
+        expect(prompts.intro).toHaveBeenCalledWith('Folder Structure Pro');
+        expect(prompts.cancel).toHaveBeenCalledWith('Operation cancelled.');
+    });
+
     it('uses the current directory by default and preserves extension filtering defaults', async () => {
         const cwd = await createTemporaryDirectory();
         await createSampleProject(cwd);

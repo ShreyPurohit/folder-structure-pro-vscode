@@ -28,13 +28,64 @@ describe('CLI bundle', () => {
         expect(manifest.private).toBe(true);
     });
 
-    it('gives a useful non-TTY message and nonzero status', () => {
+    it('gives a useful non-TTY message and nonzero status when no command is provided', () => {
         const result = spawnSync(process.execPath, [bundlePath], { encoding: 'utf8' });
 
         expect(result.status).toBe(2);
         expect(result.stdout).toBe('');
-        expect(result.stderr).toContain('Interactive mode requires a TTY');
+        expect(result.stderr).toContain('No command was provided');
         expect(result.stderr).not.toContain('Error:');
+    });
+
+    it('provides help and runs export/create commands from the built executable', async () => {
+        const temporaryDirectory = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'folder-structure-cli-executable-'),
+        );
+        try {
+            await fs.writeFile(path.join(temporaryDirectory, 'source.txt'), '');
+            const help = spawnSync(process.execPath, [bundlePath, '--help'], {
+                cwd: temporaryDirectory,
+                encoding: 'utf8',
+            });
+            expect(help.status).toBe(0);
+            expect(help.stdout).toContain('Commands:');
+            expect(help.stderr).toBe('');
+
+            const exported = spawnSync(process.execPath, [bundlePath, 'export', '--output', '-'], {
+                cwd: temporaryDirectory,
+                encoding: 'utf8',
+            });
+            expect(exported.status).toBe(0);
+            expect(exported.stdout).toContain('source.txt');
+            expect(exported.stderr).toBe('');
+
+            const structurePath = path.join(temporaryDirectory, 'structure.json');
+            const destination = path.join(temporaryDirectory, 'created');
+            await fs.mkdir(destination);
+            await fs.writeFile(structurePath, '{"app":{"index.ts":null}}');
+            const created = spawnSync(
+                process.execPath,
+                [
+                    bundlePath,
+                    'create',
+                    structurePath,
+                    '--format',
+                    'json',
+                    '--to',
+                    destination,
+                    '--yes',
+                ],
+                { cwd: temporaryDirectory, encoding: 'utf8' },
+            );
+            expect(created.status).toBe(0);
+            expect(created.stdout).toBe('');
+            expect(created.stderr).toContain('Created 1 directory and 1 file');
+            await expect(
+                fs.readFile(path.join(destination, 'app', 'index.ts'), 'utf8'),
+            ).resolves.toBe('');
+        } finally {
+            await fs.rm(temporaryDirectory, { recursive: true, force: true });
+        }
     });
 
     it('supports cancellation, expected errors, and success through injected dependencies', async () => {
