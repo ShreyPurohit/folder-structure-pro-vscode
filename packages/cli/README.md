@@ -54,7 +54,8 @@ The directory defaults to the current working directory. `--format` accepts
 `--no-gitignore` disables root `.gitignore` filtering. `node_modules` remains
 excluded. Clipboard failures are reported on stderr and never redirect the
 structure to another destination. Clipboard access may be unavailable in
-headless Linux environments; export the structure to a file instead.
+headless Linux environments; use `export --output <file>` to write it to a
+file or `export --output -` to write the structure to stdout instead.
 
 ### Export to a file or stdout
 

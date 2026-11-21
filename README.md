@@ -73,10 +73,20 @@
 3. 🎯 **Choose** "Copy Folder Structure As" or "Create Folder Structure"
 4. 🎉 **Done!** Your structure is ready to use
 
-### CLI (development preview)
+### Command-Line Interface
 
-The CLI package provides interactive workflows plus direct `copy`, `export`,
-and `create` commands and requires Node.js `>=22.14.0`:
+Prefer working from the terminal? Folder Structure Pro also includes a CLI
+companion for copying, exporting, and creating folder structures from the
+command line.
+
+The CLI package is currently available in this repository, remains private,
+and has not yet been published to npm. See the
+[CLI documentation](./packages/cli/README.md) for its capabilities and current
+development status. npm installation instructions and a link to the npm
+package will be added here after publication. The CLI requires Node.js
+`>=22.14.0`.
+
+To try it from a local repository checkout:
 
 ```sh
 pnpm --filter folder-structure-pro build
@@ -87,8 +97,8 @@ node packages/cli/dist/index.js create structure.json --format json --yes
 
 It supports plain-text or JSON output, clipboard copy, stdout/file export, and
 confirmed creation from validated plain-text or JSON structures. See
-[the CLI README](./packages/cli/README.md) for command options, filtering
-defaults, safety behavior, and limitations. It is not yet published.
+the CLI documentation for command options, filtering defaults, safety behavior,
+and limitations.
 
 <hr style="border: 2px solid black; width: 100%; " />
 
