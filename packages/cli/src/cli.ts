@@ -23,6 +23,7 @@ import { systemClipboard, type ClipboardAdapter } from './adapters/clipboard.js'
 import { exportStructure } from './adapters/nodeOutput.js';
 import { NodeFileSystemAdapter } from './adapters/nodeFileSystem.js';
 import { CANCELLED, createCliPrompts, type CliPrompts, type PromptResult } from './presentation.js';
+import { formatSuccessFooter } from './success-footer.js';
 
 export type CliWriter = (text: string) => void | Promise<void>;
 
@@ -230,13 +231,14 @@ async function runDirectCommand(
             if (command.kind === 'copy') {
                 await clipboard.write(generated.content);
                 await stderr(
-                    `Copied ${countLabel(generated.entries, 'entry')} to the clipboard.\n`,
+                    `Copied ${countLabel(generated.entries, 'entry')} to the clipboard.${formatSuccessFooter()}\n`,
                 );
                 return 0;
             }
 
             if (command.output === '-') {
                 await stdout(`${generated.content}\n`);
+                await stderr(`${formatSuccessFooter()}\n`);
                 return 0;
             }
             const result = await exportStructure(
@@ -254,7 +256,9 @@ async function runDirectCommand(
                     );
                 },
             );
-            await stderr(`Exported ${countLabel(generated.entries, 'entry')} to ${result}.\n`);
+            await stderr(
+                `Exported ${countLabel(generated.entries, 'entry')} to ${result}.${formatSuccessFooter()}\n`,
+            );
             return 0;
         }
 
@@ -277,7 +281,7 @@ async function runDirectCommand(
             plan,
             command.onConflict === 'replace' ? 'replace' : 'skip',
         );
-        await stderr(`${formatCreationResult(result)}\n`);
+        await stderr(`${formatCreationResult(result)}${formatSuccessFooter()}\n`);
         return 0;
     } catch (error) {
         await stderr(`${formatCommandError(error)}\n`);
@@ -358,7 +362,7 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
         if (destination === 'clipboard') {
             await clipboard.write(generated.content);
             prompts.outro(
-                `Copied ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to the clipboard.`,
+                `Copied ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to the clipboard.${formatSuccessFooter()}`,
             );
             return 0;
         }
@@ -391,7 +395,7 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
         }
 
         prompts.outro(
-            `Exported ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to ${result}.`,
+            `Exported ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to ${result}.${formatSuccessFooter()}`,
         );
         return 0;
     } catch (error) {
@@ -457,7 +461,7 @@ async function runStructureCreation(dependencies: CliDependencies): Promise<numb
     }
 
     const result = await executeStructureCreation(fileSystem, plan, conflictResolution);
-    prompts.outro(formatCreationResult(result));
+    prompts.outro(`${formatCreationResult(result)}${formatSuccessFooter()}`);
     return 0;
 }
 

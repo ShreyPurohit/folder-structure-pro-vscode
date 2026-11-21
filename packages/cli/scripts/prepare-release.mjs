@@ -7,10 +7,13 @@ const packageDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url
 const repositoryRoot = path.resolve(packageDirectory, '..', '..');
 const releaseDirectory = path.join(packageDirectory, '.release');
 const manifestPath = path.join(packageDirectory, 'package.json');
+
 const manifestFields = [
     'name',
     'version',
     'description',
+    'author',
+    'keywords',
     'repository',
     'homepage',
     'bugs',
@@ -34,6 +37,7 @@ function runPnpm(args) {
     const hasPnpmScript = pnpmExecutable && /\.(?:cjs|mjs|js)$/i.test(pnpmExecutable);
     let command;
     let commandArgs;
+
     if (hasPnpmScript) {
         command = process.execPath;
         commandArgs = [pnpmExecutable, ...args];
@@ -49,6 +53,7 @@ function runPnpm(args) {
         command = 'pnpm';
         commandArgs = args;
     }
+
     const result = spawnSync(command, commandArgs, {
         cwd: repositoryRoot,
         stdio: 'inherit',
@@ -60,6 +65,7 @@ function runPnpm(args) {
             cause: result.error,
         });
     }
+
     if (result.status !== 0) {
         throw new Error(
             `${command} ${args.join(' ')} exited with status ${String(result.status)}.`,
@@ -69,6 +75,7 @@ function runPnpm(args) {
 
 async function requireRegularFile(filePath) {
     let metadata;
+
     try {
         metadata = await fs.lstat(filePath);
     } catch (error) {
@@ -77,6 +84,7 @@ async function requireRegularFile(filePath) {
         }
         throw error;
     }
+
     if (!metadata.isFile()) {
         throw new Error(`Required release input is not a regular file: ${filePath}`);
     }
@@ -85,6 +93,7 @@ async function requireRegularFile(filePath) {
 async function readWorkspaceManifest() {
     const contents = await fs.readFile(manifestPath, 'utf8');
     let manifest;
+
     try {
         manifest = JSON.parse(contents);
     } catch (error) {
@@ -96,14 +105,22 @@ async function readWorkspaceManifest() {
     if (manifest.name !== 'folder-structure-pro') {
         throw new Error(`Unexpected CLI package name: ${String(manifest.name)}.`);
     }
+
     if (typeof manifest.version !== 'string' || manifest.version.length === 0) {
         throw new Error('The CLI workspace manifest must define a package version.');
     }
+
     if (JSON.stringify(manifest.files) !== JSON.stringify(['dist', 'README.md', 'LICENSE'])) {
         throw new Error('The CLI workspace manifest has an unexpected package file allowlist.');
     }
+
     if (
-        manifest.bin?.['folder-structure-pro'] !== './dist/index.js' ||
+        manifest.author !== 'Shrey Purohit' ||
+        !Array.isArray(manifest.keywords) ||
+        manifest.keywords.length === 0 ||
+        manifest.repository?.url !==
+            'git+https://github.com/ShreyPurohit/folder-structure-pro-vscode.git' ||
+        manifest.bin?.['folder-structure-pro'] !== 'dist/index.js' ||
         manifest.dependencies?.clipboardy === undefined ||
         Object.keys(manifest.dependencies).length !== 1
     ) {
@@ -113,23 +130,28 @@ async function readWorkspaceManifest() {
     }
 
     const publicManifest = {};
+
     for (const field of manifestFields) {
         if (manifest[field] === undefined) {
             throw new Error(`The CLI workspace manifest is missing required field "${field}".`);
         }
+
         publicManifest[field] = manifest[field];
     }
+
     return publicManifest;
 }
 
 async function removePreviousReleaseDirectory() {
     const relativeDirectory = path.relative(packageDirectory, releaseDirectory);
+
     if (relativeDirectory !== '.release') {
         throw new Error('The generated release directory resolved outside the CLI package.');
     }
 
     try {
         const metadata = await fs.lstat(releaseDirectory);
+
         if (metadata.isSymbolicLink()) {
             throw new Error(`Refusing to replace a symlink at ${releaseDirectory}.`);
         }
@@ -144,6 +166,7 @@ async function removePreviousReleaseDirectory() {
 
 async function prepareRelease() {
     const publicManifest = await readWorkspaceManifest();
+
     await removePreviousReleaseDirectory();
 
     runPnpm(['--filter', 'folder-structure-pro', 'build']);
@@ -153,13 +176,16 @@ async function prepareRelease() {
         path.join(packageDirectory, 'README.md'),
         path.join(packageDirectory, 'LICENSE'),
     ];
+
     await Promise.all(inputs.map(requireRegularFile));
 
     const releaseDistDirectory = path.join(releaseDirectory, 'dist');
+
     await fs.mkdir(releaseDistDirectory, { recursive: true });
     await fs.copyFile(inputs[0], path.join(releaseDistDirectory, 'index.js'));
     await fs.copyFile(inputs[1], path.join(releaseDirectory, 'README.md'));
     await fs.copyFile(inputs[2], path.join(releaseDirectory, 'LICENSE'));
+
     await fs.writeFile(
         path.join(releaseDirectory, 'package.json'),
         `${JSON.stringify(publicManifest, null, 2)}\n`,

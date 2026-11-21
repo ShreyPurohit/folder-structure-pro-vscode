@@ -1,12 +1,26 @@
+
 {
     "name": "folder-structure-pro",
     "version": "0.1.0",
     "private": true,
     "description": "Generate, copy, export, and create directory structures from the command line.",
+    "author": "Shrey Purohit",
     "license": "MIT",
+    "keywords": [
+        "folder-structure",
+        "directory-structure",
+        "directory-tree",
+        "folder-tree",
+        "cli",
+        "filesystem",
+        "file-system",
+        "project-structure",
+        "developer-tools",
+        "scaffolding"
+    ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/ShreyPurohit/folder-structure-pro-vscode.git",
+        "url": "git+https://github.com/ShreyPurohit/folder-structure-pro-vscode.git",
         "directory": "packages/cli"
     },
     "homepage": "https://github.com/ShreyPurohit/folder-structure-pro-vscode#readme",
@@ -18,7 +32,7 @@
         "node": ">=22.14.0"
     },
     "bin": {
-        "folder-structure-pro": "./dist/index.js"
+        "folder-structure-pro": "dist/index.js"
     },
     "files": [
         "dist",

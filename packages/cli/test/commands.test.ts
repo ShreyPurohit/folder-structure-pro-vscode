@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 import { runExecutable } from '../src/cli.js';
+import { formatSuccessFooter } from '../src/success-footer.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -47,6 +48,16 @@ async function runCommand(
     return { exitCode, stdout: stdout.join(''), stderr: stderr.join(''), clipboard };
 }
 
+const SUCCESS_FOOTER = formatSuccessFooter();
+
+function expectFooterOnce(text: string): void {
+    expect(text.split(SUCCESS_FOOTER)).toHaveLength(2);
+}
+
+function expectNoFooter(text: string): void {
+    expect(text).not.toContain(SUCCESS_FOOTER);
+}
+
 describe('direct CLI commands', () => {
     it('runs copy without prompts and reports clipboard failures without changing destinations', async () => {
         const cwd = await createTemporaryDirectory();
@@ -66,6 +77,7 @@ describe('direct CLI commands', () => {
         expect(clipboard.write).not.toHaveBeenCalledWith(expect.stringContaining('visible.ts'));
         expect(result.stdout).toBe('');
         expect(result.stderr).toContain('Copied 1 entry to the clipboard.');
+        expectFooterOnce(result.stderr);
 
         const failure = new Error('Clipboard unavailable');
         const failed = await runCommand(['copy'], cwd, {
@@ -74,6 +86,7 @@ describe('direct CLI commands', () => {
         expect(failed.exitCode).toBe(1);
         expect(failed.stderr).toContain('Clipboard unavailable');
         expect(failed.stdout).toBe('');
+        expectNoFooter(failed.stderr);
     });
 
     it('keeps export stdout limited to structure data when --output - is used', async () => {
@@ -86,7 +99,8 @@ describe('direct CLI commands', () => {
         expect(result.stdout).toContain('Directory structure:');
         expect(result.stdout).toContain('hello.txt');
         expect(result.stdout.endsWith('\n')).toBe(true);
-        expect(result.stderr).toBe('');
+        expectNoFooter(result.stdout);
+        expectFooterOnce(result.stderr);
     });
 
     it('requires --force before replacing an exported file', async () => {
@@ -98,6 +112,7 @@ describe('direct CLI commands', () => {
         const refused = await runCommand(['export', '--output', outputPath], cwd);
         expect(refused.exitCode).toBe(1);
         expect(refused.stderr).toContain('Use --force');
+        expectNoFooter(refused.stderr);
         await expect(fs.readFile(outputPath, 'utf8')).resolves.toBe('keep this');
 
         const replaced = await runCommand(['export', '--output', outputPath, '--force'], cwd);
@@ -105,6 +120,7 @@ describe('direct CLI commands', () => {
         await expect(fs.readFile(outputPath, 'utf8')).resolves.toContain('hello.txt');
         expect(replaced.stdout).toBe('');
         expect(replaced.stderr).toContain('Exported');
+        expectFooterOnce(replaced.stderr);
     });
 
     it('creates a JSON structure with explicit confirmation and destination', async () => {
@@ -125,6 +141,7 @@ describe('direct CLI commands', () => {
         );
         expect(result.stdout).toBe('');
         expect(result.stderr).toContain('Created 1 directory and 1 file');
+        expectFooterOnce(result.stderr);
     });
 
     it('defaults creation conflicts to fail, while skip preserves and replace requires explicit approval', async () => {
@@ -144,6 +161,7 @@ describe('direct CLI commands', () => {
         );
         expect(failed.exitCode).toBe(1);
         expect(failed.stderr).toContain('No changes were made');
+        expectNoFooter(failed.stderr);
         await expect(
             fs.readFile(path.join(destination, 'app', 'existing.txt'), 'utf8'),
         ).resolves.toBe('original');
@@ -173,6 +191,7 @@ describe('direct CLI commands', () => {
             '',
         );
         expect(skipped.stderr).toContain('skipped 1 file');
+        expectFooterOnce(skipped.stderr);
 
         await fs.writeFile(path.join(destination, 'app', 'existing.txt'), 'replace me');
         const replaced = await runCommand(
@@ -193,6 +212,7 @@ describe('direct CLI commands', () => {
         await expect(
             fs.readFile(path.join(destination, 'app', 'existing.txt'), 'utf8'),
         ).resolves.toBe('');
+        expectFooterOnce(replaced.stderr);
 
         const missingConfirmation = await runCommand(
             ['create', input, '--format', 'text', '--to', destination, '--on-conflict', 'replace'],
@@ -200,6 +220,7 @@ describe('direct CLI commands', () => {
         );
         expect(missingConfirmation.exitCode).toBe(2);
         expect(missingConfirmation.stderr).toContain('requires --yes');
+        expectNoFooter(missingConfirmation.stderr);
     });
 
     it('rejects invalid input and destinations before creating anything', async () => {
@@ -215,6 +236,7 @@ describe('direct CLI commands', () => {
         );
         expect(invalid.exitCode).toBe(1);
         expect(invalid.stderr).toContain('Invalid plain-text structure lines');
+        expectNoFooter(invalid.stderr);
         await expect(fs.stat(path.join(destination, 'app'))).rejects.toMatchObject({
             code: 'ENOENT',
         });
@@ -227,6 +249,7 @@ describe('direct CLI commands', () => {
         );
         expect(invalidDestination.exitCode).toBe(1);
         expect(invalidDestination.stderr).toContain('NOT_FOUND');
+        expectNoFooter(invalidDestination.stderr);
         await expect(fs.stat(path.join(cwd, 'missing'))).rejects.toMatchObject({
             code: 'ENOENT',
         });
@@ -251,9 +274,12 @@ describe('direct CLI commands', () => {
         const help = await runCommand(['--help'], cwd);
         expect(help.exitCode).toBe(0);
         expect(help.stdout).toContain('Commands:');
+        expectNoFooter(help.stdout);
+        expectNoFooter(help.stderr);
 
         const invalid = await runCommand(['unknown'], cwd);
         expect(invalid.exitCode).toBe(2);
         expect(invalid.stderr).toContain('Unknown command');
+        expectNoFooter(invalid.stderr);
     });
 });

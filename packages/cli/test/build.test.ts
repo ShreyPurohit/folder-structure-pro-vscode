@@ -4,10 +4,18 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+import { formatSuccessFooter } from '../src/success-footer.js';
 
 const packageDirectory = path.resolve(import.meta.dirname, '..');
 const bundlePath = path.join(packageDirectory, 'dist', 'index.js');
 const manifestPath = path.join(packageDirectory, 'package.json');
+
+const SUCCESS_FOOTER = formatSuccessFooter();
+
+function expectFooterOnce(text: string): void {
+    expect(text).toContain(SUCCESS_FOOTER);
+    expect(text.split(SUCCESS_FOOTER)).toHaveLength(2);
+}
 
 describe('CLI bundle', () => {
     it('is an ESM executable with bundled dependencies and external Node built-ins', async () => {
@@ -43,10 +51,12 @@ describe('CLI bundle', () => {
         );
         try {
             await fs.writeFile(path.join(temporaryDirectory, 'source.txt'), '');
+
             const help = spawnSync(process.execPath, [bundlePath, '--help'], {
                 cwd: temporaryDirectory,
                 encoding: 'utf8',
             });
+
             expect(help.status).toBe(0);
             expect(help.stdout).toContain('Commands:');
             expect(help.stderr).toBe('');
@@ -55,14 +65,17 @@ describe('CLI bundle', () => {
                 cwd: temporaryDirectory,
                 encoding: 'utf8',
             });
+
             expect(exported.status).toBe(0);
             expect(exported.stdout).toContain('source.txt');
-            expect(exported.stderr).toBe('');
+            expectFooterOnce(exported.stderr);
 
             const structurePath = path.join(temporaryDirectory, 'structure.json');
             const destination = path.join(temporaryDirectory, 'created');
+
             await fs.mkdir(destination);
             await fs.writeFile(structurePath, '{"app":{"index.ts":null}}');
+
             const created = spawnSync(
                 process.execPath,
                 [
@@ -75,16 +88,25 @@ describe('CLI bundle', () => {
                     destination,
                     '--yes',
                 ],
-                { cwd: temporaryDirectory, encoding: 'utf8' },
+                {
+                    cwd: temporaryDirectory,
+                    encoding: 'utf8',
+                },
             );
+
             expect(created.status).toBe(0);
             expect(created.stdout).toBe('');
             expect(created.stderr).toContain('Created 1 directory and 1 file');
+            expectFooterOnce(created.stderr);
+
             await expect(
                 fs.readFile(path.join(destination, 'app', 'index.ts'), 'utf8'),
             ).resolves.toBe('');
         } finally {
-            await fs.rm(temporaryDirectory, { recursive: true, force: true });
+            await fs.rm(temporaryDirectory, {
+                recursive: true,
+                force: true,
+            });
         }
     });
 
@@ -92,9 +114,11 @@ describe('CLI bundle', () => {
         const bundled = (await import(
             pathToFileURL(bundlePath).href
         )) as typeof import('../src/index.js');
+
         const temporaryDirectory = await fs.mkdtemp(
             path.join(os.tmpdir(), 'folder-structure-cli-bundle-'),
         );
+
         try {
             await fs.writeFile(path.join(temporaryDirectory, 'hello.txt'), '');
 
@@ -122,7 +146,11 @@ describe('CLI bundle', () => {
                 cancel: vi.fn(),
                 outro: vi.fn(),
             };
-            const clipboard = { write: vi.fn().mockResolvedValue(undefined) };
+
+            const clipboard = {
+                write: vi.fn().mockResolvedValue(undefined),
+            };
+
             const fileSystem = new bundled.NodeFileSystemAdapter();
 
             await expect(
@@ -137,7 +165,12 @@ describe('CLI bundle', () => {
                 }),
             ).resolves.toBe(0);
 
-            const failedPrompts = { ...prompts };
+            expect(prompts.outro).not.toHaveBeenCalled();
+
+            const failedPrompts = {
+                ...prompts,
+            };
+
             await expect(
                 bundled.runCli({
                     fileSystem,
@@ -149,7 +182,9 @@ describe('CLI bundle', () => {
                     cwd: temporaryDirectory,
                 }),
             ).resolves.toBe(1);
+
             expect(failedPrompts.error).toHaveBeenCalledWith(expect.stringContaining('NOT_FOUND'));
+            expect(failedPrompts.outro).not.toHaveBeenCalled();
 
             await expect(
                 bundled.runCli({
@@ -159,13 +194,49 @@ describe('CLI bundle', () => {
                     cwd: temporaryDirectory,
                 }),
             ).resolves.toBe(0);
-            expect(clipboard.write).toHaveBeenCalledWith(expect.stringContaining('hello.txt'));
-            expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining('Copied 1 entry'));
 
+            expect(clipboard.write).toHaveBeenCalledWith(expect.stringContaining('hello.txt'));
+
+            expect(prompts.outro).toHaveBeenCalledTimes(1);
+
+            const copyMessage = prompts.outro.mock.calls[0][0];
+
+            expect(copyMessage).toContain('Copied 1 entry');
+            expectFooterOnce(copyMessage);
+
+            const exportPath = path.join(temporaryDirectory, 'interactive-export.txt');
+
+            const exportPrompts = {
+                ...prompts,
+                chooseDestination: async () => 'file' as const,
+                enterOutputPath: async () => exportPath,
+                outro: vi.fn(),
+            };
+
+            await expect(
+                bundled.runCli({
+                    fileSystem,
+                    clipboard,
+                    prompts: exportPrompts,
+                    cwd: temporaryDirectory,
+                }),
+            ).resolves.toBe(0);
+
+            await expect(fs.readFile(exportPath, 'utf8')).resolves.toContain('hello.txt');
+
+            expect(exportPrompts.outro).toHaveBeenCalledTimes(1);
+
+            const exportMessage = exportPrompts.outro.mock.calls[0][0];
+
+            expect(exportMessage).toContain('Exported 1 entry');
+            expectFooterOnce(exportMessage);
             const structurePath = path.join(temporaryDirectory, 'creation-input.txt');
             const destinationPath = path.join(temporaryDirectory, 'created');
+
             await fs.writeFile(structurePath, 'Directory structure:\n└── app/\n    └── index.ts');
+
             await fs.mkdir(destinationPath);
+
             const creationPrompts = {
                 ...prompts,
                 chooseOperation: async () => 'create' as const,
@@ -175,6 +246,7 @@ describe('CLI bundle', () => {
                 confirmStructureCreation: async () => true,
                 outro: vi.fn(),
             };
+
             await expect(
                 bundled.runCli({
                     fileSystem,
@@ -183,14 +255,22 @@ describe('CLI bundle', () => {
                     cwd: temporaryDirectory,
                 }),
             ).resolves.toBe(0);
+
             await expect(
                 fs.readFile(path.join(destinationPath, 'app', 'index.ts'), 'utf8'),
             ).resolves.toBe('');
-            expect(creationPrompts.outro).toHaveBeenCalledWith(
-                expect.stringContaining('Created 1 directory and 1 file'),
-            );
+
+            expect(creationPrompts.outro).toHaveBeenCalledTimes(1);
+
+            const createMessage = creationPrompts.outro.mock.calls[0][0];
+
+            expect(createMessage).toContain('Created 1 directory and 1 file');
+            expectFooterOnce(createMessage);
         } finally {
-            await fs.rm(temporaryDirectory, { recursive: true, force: true });
+            await fs.rm(temporaryDirectory, {
+                recursive: true,
+                force: true,
+            });
         }
     });
 });
