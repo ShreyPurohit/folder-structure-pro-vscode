@@ -158,7 +158,7 @@
     "lint": "eslint src",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm run build:core && vitest run && pnpm --filter @folder-structure-pro/core test && pnpm --filter folder-structure-pro run build:bundle && pnpm --filter folder-structure-pro run test:built",
+    "test": "pnpm run build:core && vitest run && pnpm --filter @folder-structure-pro/core test && pnpm --filter folder-structure-pro test",
     "test:watch": "pnpm run build:core && vitest",
     "test:coverage": "pnpm run build:core && vitest run --coverage"
   },
