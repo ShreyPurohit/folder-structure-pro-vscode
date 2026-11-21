@@ -1,6 +1,6 @@
 # Folder Structure Pro — Architecture Research
 
-**Checked:** 2026-11-18  
+**Checked:** 2026-11-18
 **Purpose:** Preserve research, finalized architectural decisions, implementation status, and the remaining roadmap.
 **Status:** Active architecture and implementation record.
 

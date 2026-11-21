@@ -5,6 +5,8 @@ import {
     type EntryMetadata,
     type FolderPath,
     type FolderStructureFileSystem,
+    formatJson,
+    formatPlainText,
     traverseFolderStructure,
 } from '../src/index.js';
 
@@ -167,6 +169,63 @@ describe('traverseFolderStructure', () => {
         await expect(
             traverseFolderStructure(fileSystem, rootPath, defaultOptions),
         ).resolves.toEqual({ project: {} });
+    });
+
+    it('preserves a file named __proto__ through formatting and JSON serialization', async () => {
+        fileSystem.directories.set(rootPath, [entry('__proto__', file)]);
+
+        const structure = await traverseFolderStructure(fileSystem, rootPath, defaultOptions);
+        const project = structure.project;
+        if (project === null || typeof project !== 'object' || Array.isArray(project)) {
+            throw new Error('Expected the project root to be a directory.');
+        }
+
+        expect(Object.getPrototypeOf(project)).toBe(Object.prototype);
+        expect(Object.prototype.hasOwnProperty.call(project, '__proto__')).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(project, '__proto__')?.enumerable).toBe(true);
+        expect(formatPlainText(structure)).toContain('__proto__');
+
+        const serializedProject = (
+            JSON.parse(formatJson(structure)) as Record<string, Record<string, unknown>>
+        ).project;
+        expect(Object.prototype.hasOwnProperty.call(serializedProject, '__proto__')).toBe(true);
+        expect(serializedProject['__proto__']).toBe('file');
+    });
+
+    it('preserves a directory named __proto__ through formatting and JSON serialization', async () => {
+        fileSystem.directories.set(rootPath, [entry('__proto__', directory)]);
+        fileSystem.directories.set('/workspace/project/__proto__' as FolderPath, [
+            entry('nested.txt', file),
+        ]);
+
+        const structure = await traverseFolderStructure(fileSystem, rootPath, defaultOptions);
+        const project = structure.project;
+        if (project === null || typeof project !== 'object' || Array.isArray(project)) {
+            throw new Error('Expected the project root to be a directory.');
+        }
+
+        expect(Object.getPrototypeOf(project)).toBe(Object.prototype);
+        expect(Object.prototype.hasOwnProperty.call(project, '__proto__')).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(project, '__proto__')?.enumerable).toBe(true);
+
+        const protoDirectory = project['__proto__'];
+        if (
+            protoDirectory === null ||
+            typeof protoDirectory !== 'object' ||
+            Array.isArray(protoDirectory)
+        ) {
+            throw new Error('Expected __proto__ to be represented as a directory.');
+        }
+        expect(Object.getPrototypeOf(protoDirectory)).toBe(Object.prototype);
+        expect(Object.prototype.hasOwnProperty.call(protoDirectory, 'nested')).toBe(true);
+        expect(formatPlainText(structure)).toContain('__proto__/');
+        expect(formatPlainText(structure)).toContain('nested.txt');
+
+        const serializedProject = (
+            JSON.parse(formatJson(structure)) as Record<string, Record<string, unknown>>
+        ).project;
+        expect(Object.prototype.hasOwnProperty.call(serializedProject, '__proto__')).toBe(true);
+        expect(serializedProject['__proto__']).toEqual({ nested: 'txt' });
     });
 
     it('excludes hidden entries by default and lets explicit patterns remain active', async () => {

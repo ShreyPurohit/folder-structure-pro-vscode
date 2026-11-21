@@ -24,6 +24,25 @@ export interface FolderStructureTraversalOptions {
 
 type TraversalEntryKind = 'directory' | 'file' | 'symlink' | 'unknown';
 
+function hasOwnEntry(structure: FolderStructure, name: string): boolean {
+    return Object.prototype.hasOwnProperty.call(structure, name);
+}
+
+function setEntry(structure: FolderStructure, name: string, value: FolderStructure[string]): void {
+    if (name === '__proto__') {
+        // Assignment would invoke the inherited __proto__ setter instead of creating an entry.
+        Object.defineProperty(structure, name, {
+            configurable: true,
+            enumerable: true,
+            value,
+            writable: true,
+        });
+        return;
+    }
+
+    structure[name] = value;
+}
+
 function classifyEntry(metadata: EntryMetadata): TraversalEntryKind {
     if (metadata.kind === 'symlink' || metadata.symlink === 'resolved-as-symlink') {
         return 'symlink';
@@ -40,26 +59,31 @@ function classifyEntry(metadata: EntryMetadata): TraversalEntryKind {
 function addFile(structure: FolderStructure, name: string): void {
     const extension = fileTypeFor(name);
     const baseName = baseNameFor(name);
-    if (isDirectoryNode(structure[baseName])) {
-        structure[name] = null;
+    const existing = hasOwnEntry(structure, baseName) ? structure[baseName] : undefined;
+    if (existing !== undefined && isDirectoryNode(existing)) {
+        setEntry(structure, name, null);
         return;
     }
 
-    structure[baseName] = mergeFileExtension(
-        isFileLeaf(structure[baseName]) ? structure[baseName] : undefined,
-        extension,
+    setEntry(
+        structure,
+        baseName,
+        mergeFileExtension(
+            existing !== undefined && isFileLeaf(existing) ? existing : undefined,
+            extension,
+        ),
     );
 }
 
 function addDirectory(structure: FolderStructure, name: string, contents: FolderStructure): void {
-    const previousValue = structure[name];
-    if (isFileLeaf(previousValue)) {
+    const previousValue = hasOwnEntry(structure, name) ? structure[name] : undefined;
+    if (previousValue !== undefined && isFileLeaf(previousValue)) {
         delete structure[name];
         for (const fileName of fileLeafToFileNames(name, previousValue)) {
-            structure[fileName] = null;
+            setEntry(structure, fileName, null);
         }
     }
-    structure[name] = contents;
+    setEntry(structure, name, contents);
 }
 
 function gitignoreRules(content: string): string[] {
