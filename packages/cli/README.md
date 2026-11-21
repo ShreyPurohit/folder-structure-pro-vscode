@@ -12,6 +12,13 @@ pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
 ```
 
+To build the CLI and validate the actual local package tarball without
+publishing it:
+
+```sh
+pnpm --filter folder-structure-pro run validate-package
+```
+
 With no arguments, a TTY opens the interactive menu. In non-TTY use, provide an
 explicit command; otherwise the CLI exits with status 2 instead of prompting.
 Explicit commands never prompt.

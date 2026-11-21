@@ -2,6 +2,17 @@
     "name": "folder-structure-pro",
     "version": "0.1.0",
     "private": true,
+    "description": "Generate, copy, export, and create directory structures from the command line.",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ShreyPurohit/folder-structure-pro-vscode.git",
+        "directory": "packages/cli"
+    },
+    "homepage": "https://github.com/ShreyPurohit/folder-structure-pro-vscode#readme",
+    "bugs": {
+        "url": "https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues"
+    },
     "type": "module",
     "engines": {
         "node": ">=22.14.0"
@@ -10,21 +21,24 @@
         "folder-structure-pro": "./dist/index.js"
     },
     "files": [
-        "dist"
+        "dist",
+        "README.md",
+        "LICENSE"
     ],
     "scripts": {
         "build": "pnpm --filter @folder-structure-pro/core build && pnpm run build:bundle",
         "build:bundle": "node esbuild.mjs",
         "check-types": "pnpm --filter @folder-structure-pro/core build && pnpm run check-types:built",
         "check-types:built": "tsc --noEmit -p tsconfig.json",
+        "validate-package": "pnpm run build && vitest run --config vitest.config.ts test/packaging.test.ts",
         "test": "pnpm run build && pnpm run test:built",
         "test:built": "vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@clack/prompts": "1.9.0",
         "clipboardy": "5.3.2"
     },
     "devDependencies": {
+        "@clack/prompts": "1.9.0",
         "@folder-structure-pro/core": "workspace:*"
     }
 }

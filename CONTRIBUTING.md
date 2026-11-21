@@ -12,7 +12,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 ### Required package manager
 
-This repository uses **pnpm 10.32.0** as its only supported package manager. Node.js 24 is used in CI.
+This repository uses **pnpm 12.21.0** as its only supported package manager. Node.js 24 is used in CI.
 
 Enable Corepack and activate the repository-pinned pnpm version:
 
@@ -21,7 +21,7 @@ corepack enable
 corepack pnpm --version
 ```
 
-If Corepack is unavailable, install pnpm 10.32.0 using the [official pnpm installation guide](https://pnpm.io/installation).
+If Corepack is unavailable, install pnpm 12.21.0 using the [official pnpm installation guide](https://pnpm.io/installation).
 
 Use pnpm for all repository dependency and script operations. `npm install` and `npm ci` are not supported for installing this repository's dependencies.
 
