@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 import { runExecutable } from './cli.js';
@@ -27,10 +28,27 @@ export {
     type PromptResult,
 } from './presentation.js';
 
-const isExecutableEntry =
-    process.argv[1] !== undefined &&
-    path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+function pathsMatch(left: string, right: string): boolean {
+    return process.platform === 'win32'
+        ? path.win32.normalize(left).toLowerCase() === path.win32.normalize(right).toLowerCase()
+        : left === right;
+}
 
-if (isExecutableEntry) {
+function isExecutableEntry(): boolean {
+    const argumentPath = process.argv[1];
+    if (argumentPath === undefined) {
+        return false;
+    }
+
+    const entryPath = path.resolve(argumentPath);
+    const modulePath = path.resolve(fileURLToPath(import.meta.url));
+    try {
+        return pathsMatch(realpathSync(entryPath), realpathSync(modulePath));
+    } catch {
+        return false;
+    }
+}
+
+if (isExecutableEntry()) {
     process.exitCode = await runExecutable();
 }
