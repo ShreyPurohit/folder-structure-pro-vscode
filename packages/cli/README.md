@@ -12,8 +12,9 @@ pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
 ```
 
-To build the CLI and validate the actual local package tarball without
-publishing it:
+To build the CLI, create a local package tarball, install it into an isolated
+temporary npm consumer, and validate the installed executable without
+publishing:
 
 ```sh
 pnpm --filter folder-structure-pro run validate-package
