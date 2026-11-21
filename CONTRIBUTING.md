@@ -12,7 +12,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 ### Required package manager
 
-This repository uses **pnpm 12.21.0** as its only supported package manager. Node.js 24 is used in CI.
+This repository uses **pnpm 12.21.0** as its only supported package manager. CI runs the test suite on Node.js 24 for Windows, Ubuntu, and macOS, and separately validates the CLI package on Ubuntu with Node.js 22.14.0.
 
 Enable Corepack and activate the repository-pinned pnpm version:
 
@@ -76,7 +76,9 @@ Use pnpm for all repository dependency and script operations. `npm install` and 
 
 ## Before Opening a Pull Request
 
-Run the checks used by GitHub Actions:
+Run the relevant checks locally before opening a pull request. CI covers the
+additional operating-system and Node.js matrix, so contributors do not need to
+reproduce every matrix job locally:
 
 ```bash
 pnpm run format:check
@@ -95,7 +97,7 @@ Use pnpm to add, remove, or update dependencies, and commit `package.json` and `
 
 ## Continuous Integration
 
-Pull requests targeting `main` and pushes to `main` run the **CI** workflow. It checks formatting, lint, types, and builds; runs Vitest on Ubuntu and Windows; uploads a coverage report; and builds a VSIX artifact.
+Pull requests targeting `main` and pushes to `main` run the **CI** workflow. It checks formatting, lint, types, and builds; runs Vitest on Windows, Ubuntu, and macOS using Node.js 24; and has a separate Ubuntu job that validates the private CLI package on Node.js 22.14.0 without publishing it. The workflow also uploads a coverage report and builds a VSIX artifact.
 
 ## Pull Request Process
 

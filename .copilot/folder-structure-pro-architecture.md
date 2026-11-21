@@ -13,8 +13,10 @@
 - **Completed:** CLI Step 3C interactive structure creation, with shared-core parsing, validation, planning, conflict handling, revalidation, and exclusive creation of new files.
 - **Completed:** CLI Step 3D direct `copy`, `export`, and `create` commands, with non-interactive argument validation, help, output routing, exit codes, and explicit creation conflict policies.
 - **Completed:** CLI Step 3E.1 package metadata and tarball validation.
-- **Completed:** CLI Step 3E.2 isolated consumer installation and installed-binary validation; Windows and Ubuntu passed under Node 24.
-- **Remaining:** Later roadmap phases below. CLI npm publication is unimplemented and requires a separate future decision.
+- **Completed:** CLI Step 3E.2 isolated consumer installation and installed-binary validation through the packed tarball in a consumer project.
+- **Completed:** CLI Step 3F.2 runtime and platform validation; the dedicated Ubuntu Node.js 22.14.0 package-validation job passed, and the Node.js 24 test matrix passed on Windows, Ubuntu, and macOS.
+- **Completed:** CLI Step 3F.3 documentation updates for package status, runtime/platform validation, and contributor CI guidance.
+- **Remaining:** Later roadmap phases below. The CLI package remains private and unpublished; npm publication is unimplemented and requires a separate future decision.
 
 ## Finalized decisions
 
@@ -166,9 +168,9 @@ The extension should remain at the repository root initially. Root `esbuild.js` 
 
 The CLI tarball should allowlist only `dist`, README, LICENSE and required package metadata. ESM entry needs a Node shebang and a `bin` mapping. Inspect both the packed manifest and tarball contents.
 
-Packaging validation completed in Steps 3E.1 and 3E.2: the package metadata and tarball are checked, and the actual tarball is installed into an isolated npm consumer where the installed binary is exercised. The existing test creates the tarball with `pnpm pack --pack-destination <temp-directory>`; npm is used only to install that local tarball. Installed-package validation passed on Windows and Ubuntu under Node 24.
+Packaging validation completed in Steps 3E.1 and 3E.2: the package metadata and tarball are checked, and the actual tarball is installed into an isolated npm consumer where the installed binary is exercised. The existing test creates the tarball with `pnpm pack --pack-destination <temp-directory>`; npm is used only to install that local tarball. The installed-package test passes in the Node.js 24 Windows, Ubuntu, and macOS test matrix. The dedicated Ubuntu CLI package-validation job also passes on Node.js 22.14.0. These checks do not publish the package; it remains private and unpublished.
 
-Outstanding validation includes macOS and the declared Node.js minimum (`>=22.14.0`); CI currently uses Node 24. Invocation through `npx` and `pnpm dlx` also remains unvalidated. CLI npm publication is not configured and requires a separate future decision. The existing `publish.yml` workflow publishes the VS Code extension VSIX to Visual Studio Marketplace/Open VSX, while `release.yml` builds the extension VSIX and can create a GitHub Release; neither publishes the CLI. Keep those extension workflows independent from any future CLI npm release.
+The declared Node.js minimum (`>=22.14.0`) is validated for CLI package validation on Ubuntu. The Node.js 24 test matrix passes on Windows, Ubuntu, and macOS. Invocation through `npx`, `pnpm dlx`, or global installation remains unvalidated; headless Linux environments may not provide clipboard access. CLI packaging validation exercises a local tarball and is not npm publication. CLI npm publication is not configured and requires a separate future decision. The existing `publish.yml` workflow publishes the VS Code extension VSIX to Visual Studio Marketplace/Open VSX, while `release.yml` builds the extension VSIX and can create a GitHub Release; neither publishes the CLI. Keep those extension workflows independent from any future CLI npm release.
 
 ## Research snapshot (versions checked 2026-11-18)
 
@@ -180,7 +182,7 @@ Values below are the research snapshot, not a promise that versions remain lates
 - TypeScript **7.0.2**.
 - esbuild **0.28.0** (already used in the repository).
 - tsdown **0.23.7**; tsup **9.0.0** (its project README reports it is no longer actively maintained); unbuild **3.6.1**.
-- The CLI package declares Node.js `>=22.14.0`. CI validates Node 24; the declared minimum has not been independently tested.
+- The CLI package declares Node.js `>=22.14.0`. CI validates package installation at Node.js 22.14.0 on Ubuntu and runs the test suite on Node.js 24 across Windows, Ubuntu, and macOS.
 
 ### Official references
 
@@ -209,7 +211,7 @@ Values below are the research snapshot, not a promise that versions remain lates
 3. **CLI copy/export — completed:** Steps 3A–3B provide the Node adapter and ESM executable foundation, Clack interaction, shared-core copy/export, filtering, preview, clipboard, and file output. Step 3D adds direct commands, argument/help handling, stdout export, exit codes, and non-interactive creation with explicit conflict policies.
 4. **Safe structure creation — completed:** Step 3C adds parser-driven validation and creation plans, destination and entry metadata checks, bounded preview, explicit replace/skip/cancel handling, final confirmation, revalidation, and exclusive Node file creation. The existing VS Code extension behavior remains unchanged.
 5. **Additional CLI features — remaining:** consider dry-run, configuration, shell completion, and other features only after the MVP.
-6. **CLI packaging validation — completed:** Steps 3E.1 and 3E.2 verify package metadata and tarball contents, then install the tarball into an isolated npm consumer and exercise the installed binary on Windows and Ubuntu under Node 24. **Remaining:** macOS and Node.js `>=22.14.0` minimum validation, plus `npx` and `pnpm dlx` invocation. CLI npm publication is unimplemented and needs a separate future decision; the existing VSIX marketplace and GitHub Release workflows are for the VS Code extension only.
+6. **CLI packaging and compatibility validation — completed:** Steps 3E.1 and 3E.2 verify package metadata and tarball contents, then install the tarball into an isolated npm consumer and exercise the installed binary. The Node.js 24 test matrix passes on Windows, Ubuntu, and macOS; the dedicated Ubuntu package-validation job passes on Node.js 22.14.0. **Remaining:** `npx`, `pnpm dlx`, and global-install invocation remain unvalidated; headless clipboard access may be unavailable. These checks are distinct from npm publication, which remains unimplemented and requires a separate future decision. The existing VSIX marketplace and GitHub Release workflows are for the VS Code extension only.
 
 ## Remaining limitations and implementation checks
 
