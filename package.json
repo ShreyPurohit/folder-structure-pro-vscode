@@ -2,12 +2,7 @@
   "name": "copy-folder-structure",
   "displayName": "Folder Structure Pro",
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
-  "packageManager": "pnpm@10.32.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
+  "packageManager": "pnpm@12.21.0",
   "publisher": "iamshreydxv",
   "version": "0.2.5",
   "engines": {

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FolderFileSystemError } from '@folder-structure-pro/core';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 
@@ -14,6 +14,7 @@ async function createTemporaryDirectory(): Promise<string> {
 }
 
 afterEach(async () => {
+    vi.restoreAllMocks();
     if (temporaryDirectory) {
         await fs.rm(temporaryDirectory, { recursive: true, force: true });
         temporaryDirectory = undefined;
@@ -150,5 +151,25 @@ describe('NodeFileSystemAdapter', () => {
             code: 'ALREADY_EXISTS',
         });
         await expect(adapter.readText(filePath)).resolves.toBe('created');
+    });
+
+    it('removes the incomplete file after an actual exclusive-create write failure', async () => {
+        const root = await createTemporaryDirectory();
+        const probeHandle = await fs.open(path.join(root, 'probe'), 'w');
+        const fileHandlePrototype = Object.getPrototypeOf(probeHandle);
+        await probeHandle.close();
+
+        const writeError = new Error('Write failed.');
+        vi.spyOn(fileHandlePrototype, 'writeFile').mockRejectedValue(writeError);
+        const filePath = path.join(root, 'incomplete.txt');
+
+        await expect(
+            adapter.createFileExclusive(adapter.toFolderPath(filePath), 'content'),
+        ).rejects.toMatchObject({
+            code: 'IO_ERROR',
+            cause: writeError,
+        });
+
+        await expect(fs.lstat(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 });

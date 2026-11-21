@@ -73,6 +73,20 @@
 3. 🎯 **Choose** "Copy Folder Structure As" or "Create Folder Structure"
 4. 🎉 **Done!** Your structure is ready to use
 
+### CLI (development preview)
+
+The CLI package currently provides an interactive folder-structure copy/export
+workflow and requires Node.js `>=22.14.0`:
+
+```sh
+pnpm --filter folder-structure-pro build
+node packages/cli/dist/index.js
+```
+
+It supports plain-text or JSON output, clipboard copy, and UTF-8 file export.
+See [the CLI README](./packages/cli/README.md) for filtering defaults and
+limitations. It is not yet published.
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## How to Use

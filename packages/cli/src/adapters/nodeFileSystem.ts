@@ -107,30 +107,63 @@ export class NodeFileSystemAdapter implements FolderStructureFileSystem, Exclusi
             fs.open(this.decodePath(folderPath), 'wx'),
         );
 
-        let failed = false;
-        let failure: unknown;
+        let writeFailed = false;
+        let writeFailure: unknown;
+        let closeFailed = false;
+        let closeFailure: unknown;
         try {
             await fileHandle.writeFile(content, { encoding: 'utf8' });
         } catch (error) {
-            failed = true;
-            failure = error;
+            writeFailed = true;
+            writeFailure = error;
         } finally {
             try {
                 await fileHandle.close();
             } catch (error) {
-                failure = failed
-                    ? new AggregateError(
-                          [failure, error],
-                          'Writing and closing the exclusively created file both failed.',
-                      )
-                    : error;
-                failed = true;
+                closeFailed = true;
+                closeFailure = error;
             }
         }
 
-        if (failed) {
-            throw this.normalizeError(failure);
+        if (!writeFailed) {
+            if (closeFailed) {
+                throw this.normalizeError(closeFailure);
+            }
+            return;
         }
+
+        const normalizedWriteFailure = this.normalizeError(writeFailure);
+        const additionalFailures: Error[] = [];
+        const additionalContext: string[] = [];
+        if (closeFailed) {
+            const normalizedCloseFailure = this.normalizeError(closeFailure);
+            additionalFailures.push(normalizedCloseFailure);
+            additionalContext.push(
+                `Closing the file also failed: ${normalizedCloseFailure.message}`,
+            );
+        }
+
+        try {
+            await fs.unlink(this.decodePath(folderPath));
+        } catch (error) {
+            const normalizedCleanupFailure = this.normalizeError(error);
+            if (normalizedCleanupFailure.code !== 'NOT_FOUND') {
+                additionalFailures.push(normalizedCleanupFailure);
+                additionalContext.push(
+                    `Removing the incomplete file also failed: ${normalizedCleanupFailure.message}`,
+                );
+            }
+        }
+
+        if (additionalFailures.length > 0) {
+            throw new AggregateError(
+                [normalizedWriteFailure, ...additionalFailures],
+                `Writing the exclusively created file failed: ${normalizedWriteFailure.message}. ${additionalContext.join(' ')}`,
+                { cause: normalizedWriteFailure },
+            );
+        }
+
+        throw normalizedWriteFailure;
     }
 
     joinChild(parent: FolderPath, name: string): FolderPath {

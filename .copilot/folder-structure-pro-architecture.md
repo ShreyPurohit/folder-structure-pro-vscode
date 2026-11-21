@@ -4,12 +4,13 @@
 **Purpose:** Preserve research, finalized architectural decisions, implementation status, and the remaining roadmap.
 **Status:** Active architecture and implementation record.
 
-## Implementation status (2026-11-19)
+## Implementation status (2026-11-21)
 
 - **Completed:** pnpm workspace and private shared-core extraction, including shared models, traversal, filtering, parsing, formatting, and validation.
 - **Completed:** VS Code adapter and extension migration, with extension regression verification and the existing VSIX workflow retained.
 - **Completed:** CLI Step 3A foundation, including the Node filesystem adapter, exclusive-create capability, ESM/esbuild executable bundle, and adapter/build tests.
-- **Remaining:** CLI MVP interaction and copy/export behavior, followed by the later roadmap phases below. No CLI prompts or user-facing commands are implemented yet.
+- **Completed:** CLI Step 3B interactive copy/export MVP, with shared-core traversal/formatting, independent filters, bounded preview, clipboard handling, and safe file conflict handling.
+- **Remaining:** Later roadmap phases below. Non-interactive commands, structure creation, and release are not implemented.
 
 ## Finalized decisions
 
@@ -221,7 +222,7 @@ Values below are the research snapshot, not a promise that versions remain lates
 
 1. **Workspace and core extraction — completed:** pnpm workspace and pure shared models, parsing, formatting, validation, filtering, and traversal are in `packages/core`.
 2. **Extension migration/regression — completed:** the extension uses the shared core through its VS Code filesystem adapter while preserving remote/virtual `workspace.fs`, commands, webview, and VSIX workflow.
-3. **CLI copy/export — in progress:** Step 3A is implemented (Node adapter, ESM executable build, and tests). Remaining work is the Clack boundary, copy/export commands, output handling, filtering, and non-interactive behavior.
+3. **CLI copy/export — completed:** Steps 3A–3B provide the Node adapter and ESM executable foundation, Clack interaction, shared-core copy/export, filtering, preview, clipboard, and file output. Non-interactive commands and additional CLI functionality remain out of scope.
 4. **Safe structure creation — remaining:** add parser-driven creation plans, target validation, symlink preflight, conflict resolution, dry-run, Node exclusive writes, and explicit VS Code best-effort limitations.
 5. **Additional CLI features — remaining:** consider filename and line-reference commands only after the MVP.
 6. **Packaging/release — remaining:** verify tarball, clean installs, Windows/macOS/Linux, `npx`, `pnpm dlx`, independent VSIX/CLI release, and provenance.
