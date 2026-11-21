@@ -10,6 +10,21 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 ## Development Setup
 
+### Required package manager
+
+This repository uses **pnpm 12.21.0** as its only supported package manager. CI runs the test suite on Node.js 24 for Windows, Ubuntu, and macOS, and separately validates the CLI package on Ubuntu with Node.js 22.14.0.
+
+Enable Corepack and activate the repository-pinned pnpm version:
+
+```bash
+corepack enable
+corepack pnpm --version
+```
+
+If Corepack is unavailable, install pnpm 12.21.0 using the [official pnpm installation guide](https://pnpm.io/installation).
+
+Use pnpm for all repository dependency and script operations. `npm install` and `npm ci` are not supported for installing this repository's dependencies.
+
 1. **Clone the repository**
 
     ```bash
@@ -19,16 +34,16 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 
 2. **Install dependencies**
 
-    CI uses Node.js 24. Install the exact dependency versions from the lockfile:
+    Install the exact dependency versions from `pnpm-lock.yaml`:
 
     ```bash
-    npm ci
+    pnpm install --frozen-lockfile
     ```
 
 3. **Compile the extension**
 
     ```bash
-    npm run compile
+    pnpm run compile
     ```
 
     This runs typechecking and linting, then builds `dist/extension.js`.
@@ -36,7 +51,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 4. **Run tests**
 
     ```bash
-    npm test
+    pnpm test
     ```
 
     Tests use Vitest and are located under `test/`.
@@ -44,7 +59,7 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
 5. **Check coverage**
 
     ```bash
-    npm run test:coverage
+    pnpm run test:coverage
     ```
 
     This runs the tests with coverage and writes a report to `coverage/`.
@@ -54,33 +69,35 @@ Thanks for your interest in contributing to Folder Structure Pro. This guide cov
     Node.js 22 or later is required by the VSIX CLI:
 
     ```bash
-    npx --yes @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+    pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
     ```
 
     Packaging runs the `vscode:prepublish` script, which performs a production build.
 
 ## Before Opening a Pull Request
 
-Run the checks used by GitHub Actions:
+Run the relevant checks locally before opening a pull request. CI covers the
+additional operating-system and Node.js matrix, so contributors do not need to
+reproduce every matrix job locally:
 
 ```bash
-npm run format:check
-npm run compile
-npm run check-types:test
-npm test
-npm run test:coverage
-npx --yes @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
+pnpm run format:check
+pnpm run compile
+pnpm run check-types:test
+pnpm test
+pnpm run test:coverage
+pnpm dlx @vscode/vsce@4.0.0 package --out copy-folder-structure.vsix
 ```
 
 Add or update tests for behavior changes. Keep changes focused and follow the existing TypeScript, ESLint, and Prettier conventions.
 
 ## Dependency Changes
 
-Keep `package.json` and `package-lock.json` in sync. Use `npm update` to update dependencies within the declared version ranges, or `npm install <package>` when adding a dependency. Commit manifest and lockfile changes together. Do not delete or hand-edit `package-lock.json`; CI installs from it with `npm ci`.
+Use pnpm to add, remove, or update dependencies, and commit `package.json` and `pnpm-lock.yaml` changes together. Do not create or commit `package-lock.json`. `npm install` and `npm ci` are not supported for project dependencies.
 
 ## Continuous Integration
 
-Pull requests targeting `main` and pushes to `main` run the **CI** workflow. It checks formatting, lint, types, and builds; runs Vitest on Ubuntu and Windows; uploads a coverage report; and builds a VSIX artifact.
+Pull requests targeting `main` and pushes to `main` run the **CI** workflow. It checks formatting, lint, types, and builds; runs Vitest on Windows, Ubuntu, and macOS using Node.js 24; and has a separate Ubuntu job that validates the private CLI package on Node.js 22.14.0 without publishing it. The workflow also uploads a coverage report and builds a VSIX artifact.
 
 ## Pull Request Process
 

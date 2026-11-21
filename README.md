@@ -73,6 +73,33 @@
 3. 🎯 **Choose** "Copy Folder Structure As" or "Create Folder Structure"
 4. 🎉 **Done!** Your structure is ready to use
 
+### Command-Line Interface
+
+Prefer working from the terminal? Folder Structure Pro also includes a CLI
+companion for copying, exporting, and creating folder structures from the
+command line.
+
+The CLI package is currently available in this repository, remains private,
+and has not yet been published to npm. See the
+[CLI documentation](./packages/cli/README.md) for its capabilities and current
+development status. npm installation instructions and a link to the npm
+package will be added here after publication. The CLI requires Node.js
+`>=22.14.0`.
+
+To try it from a local repository checkout:
+
+```sh
+pnpm --filter folder-structure-pro build
+node packages/cli/dist/index.js
+node packages/cli/dist/index.js export . --output -
+node packages/cli/dist/index.js create structure.json --format json --yes
+```
+
+It supports plain-text or JSON output, clipboard copy, stdout/file export, and
+confirmed creation from validated plain-text or JSON structures. See
+the CLI documentation for command options, filtering defaults, safety behavior,
+and limitations.
+
 <hr style="border: 2px solid black; width: 100%; " />
 
 ## How to Use
@@ -290,6 +317,10 @@ Contributions are welcome. If you want to report a bug, suggest a feature, or he
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 The guide covers setup, local checks, testing, pull request expectations, and dependency updates.
+
+### Development package manager
+
+Contributors must use **pnpm 12.21.0**. Enable Corepack with `corepack enable`, then install dependencies with `pnpm install --frozen-lockfile`. See [CONTRIBUTING.md](./CONTRIBUTING.md) for setup and development commands. `npm install` and `npm ci` are not supported for project dependencies.
 
 <hr style="border: 2px solid black; width: 100%; " />
 

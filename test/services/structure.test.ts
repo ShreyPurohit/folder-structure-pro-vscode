@@ -3,21 +3,18 @@ import * as vscode from 'vscode';
 import { StructureService } from '../../src/services/structure';
 import { FileSystemService } from '../../src/services/fileSystem';
 import { GitignoreService } from '../../src/services/gitignore';
-import { resetVscodeMocks } from '../__mocks__/vscode';
+import {
+    mockFsReadDirectory,
+    mockFsReadFile,
+    mockFsStat,
+    resetVscodeMocks,
+} from '../__mocks__/vscode';
 import type { FolderStructure } from '../../src/types';
 
 const PLAIN_TEXT = `Directory structure:
 ├── app/
 │   └── index.ts
 └── package.json`;
-
-const MULTI_ROOT = `Directory structure:
-├── user-service/
-│   └── package.json
-│
-├── order-service/
-│   └── package.json
-└── docker-compose.yml`;
 
 function getDirectory(structure: FolderStructure, name: string): FolderStructure {
     const value = structure[name];
@@ -27,102 +24,70 @@ function getDirectory(structure: FolderStructure, name: string): FolderStructure
     return value;
 }
 
+type MockTree = Record<string, [string, vscode.FileType][]>;
+
+function configureTree(tree: MockTree): void {
+    mockFsReadDirectory.mockImplementation(async (uri) => tree[uri.path] ?? []);
+    mockFsStat.mockImplementation(async (uri) => {
+        if (Object.prototype.hasOwnProperty.call(tree, uri.path)) {
+            return { type: vscode.FileType.Directory };
+        }
+        for (const [directoryPath, entries] of Object.entries(tree)) {
+            const entry = entries.find(([name]) => `${directoryPath}/${name}` === uri.path);
+            if (entry) {
+                return { type: entry[1] };
+            }
+        }
+        throw Object.assign(new Error('File not found'), { code: 'FileNotFound' });
+    });
+    mockFsReadFile.mockResolvedValue(new TextEncoder().encode(''));
+}
+
 describe('StructureService', () => {
     beforeEach(() => {
         resetVscodeMocks();
         vi.restoreAllMocks();
     });
 
-    it('derives file types and base names', () => {
+    it('preserves host path semantics for extension filename helpers', () => {
         expect(StructureService.fileTypeFor('index.ts')).toBe('ts');
         expect(StructureService.fileTypeFor('Dockerfile')).toBe('file');
         expect(StructureService.baseNameFor('index.ts')).toBe('index');
         expect(StructureService.baseNameFor('README')).toBe('README');
     });
 
-    it('parses plain text into structure with multi-extension support', () => {
-        const input = `Directory structure:
-└── app/
-    ├── package.json
-    └── package.lock`;
+    it('uses the extension filename semantics when converting parsed names', () => {
+        const name = 'folder.name\\file';
+        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(
+            `Directory structure:\n└── ${name}`,
+        );
 
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
         expect(invalidLines).toEqual([]);
-        expect(structure.app).toEqual({
-            package: ['json', 'lock'],
+        expect(structure).toEqual({
+            [StructureService.baseNameFor(name)]: StructureService.fileTypeFor(name),
         });
     });
 
-    it('supports multi-root plain text and ignores decorative separator lines', () => {
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(MULTI_ROOT);
-        expect(invalidLines).toEqual([]);
-        expect(Object.keys(structure)).toEqual(['user-service', 'order-service', 'docker-compose']);
-        expect(structure['docker-compose']).toBe('yml');
-    });
-
-    it('marks level gaps as invalid', () => {
-        const input = `Directory structure:
-└── app/
-│   │   │   └── deep.ts`;
-
-        const { invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines.length).toBeGreaterThan(0);
-    });
-
-    it('rejects JSON with invalid nested values', () => {
-        expect(StructureService.validateJsonStructure({ app: { nested: 123 } })).toBe(false);
-    });
-
-    it('marks malformed connector lines as invalid', () => {
-        const input = `Directory structure:
-├── app/
-│   ├── `;
-
-        const { invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toContain(3);
-    });
-
-    it('validates JSON structures including string[] and null leaves', () => {
-        expect(
-            StructureService.validateJsonStructure({
-                app: {
-                    package: ['json', 'lock'],
-                    Dockerfile: null,
-                },
-            }),
-        ).toBe(true);
-        expect(StructureService.validateJsonStructure({ app: [] })).toBe(false);
-        expect(StructureService.validateJsonStructure({ app: ['json', 1] })).toBe(false);
-        expect(StructureService.validateJsonStructure(null)).toBe(false);
-    });
-
-    it('formats structures by output format', () => {
-        const structure = { app: { index: 'ts' } };
-        expect(StructureService.formatStructure(structure, 'JSON Format')).toContain(
-            '"index": "ts"',
-        );
-        expect(StructureService.formatAsTree(structure)).toContain('Directory structure:');
-    });
-
     it('builds structure from remote URIs', async () => {
-        const root = vscode.Uri.file('/home/user/project');
+        const root = vscode.Uri.from({
+            scheme: 'vscode-remote',
+            authority: 'ssh-remote+example',
+            path: '/home/user/project',
+        });
         const srcUri = vscode.Uri.joinPath(root, 'src');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue(['node_modules']);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'src', type: vscode.FileType.Directory },
-                    { name: 'package.json', type: vscode.FileType.File },
-                    { name: 'package.lock', type: vscode.FileType.File },
-                    { name: '.gitignore', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/src')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: ['node_modules'],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['src', vscode.FileType.Directory],
+                ['package.json', vscode.FileType.File],
+                ['package.lock', vscode.FileType.File],
+                ['.gitignore', vscode.FileType.File],
+            ],
+            '/home/user/project/src': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -190,20 +155,17 @@ invalid-line
     it('preserves both directory and file when sharing the same basename (dir before file)', async () => {
         const root = vscode.Uri.file('/home/user/project');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app', type: vscode.FileType.Directory },
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'package.json', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app', vscode.FileType.Directory],
+                ['app.json', vscode.FileType.File],
+                ['package.json', vscode.FileType.File],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -220,19 +182,16 @@ invalid-line
     it('preserves both directory and file when sharing the same basename (file before dir)', async () => {
         const root = vscode.Uri.file('/home/user/project');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'app', type: vscode.FileType.Directory },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app.json', vscode.FileType.File],
+                ['app', vscode.FileType.Directory],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
 
         const structure = await StructureService.getStructure(root);
@@ -245,20 +204,17 @@ invalid-line
         const root = vscode.Uri.file('/home/user/project');
         const target = vscode.Uri.file('/tmp/target');
 
-        vi.spyOn(GitignoreService, 'loadRules').mockResolvedValue([]);
-        vi.spyOn(FileSystemService, 'readdir').mockImplementation(async (inputPath) => {
-            const uri = typeof inputPath === 'string' ? vscode.Uri.file(inputPath) : inputPath;
-            if (uri.path.endsWith('/project')) {
-                return [
-                    { name: 'app', type: vscode.FileType.Directory },
-                    { name: 'app.json', type: vscode.FileType.File },
-                    { name: 'app.ts', type: vscode.FileType.File },
-                ];
-            }
-            if (uri.path.endsWith('/app')) {
-                return [{ name: 'index.ts', type: vscode.FileType.File }];
-            }
-            return [];
+        vi.spyOn(GitignoreService, 'getTraversalOptions').mockReturnValue({
+            ignorePatterns: [],
+            respectGitignore: false,
+        });
+        configureTree({
+            '/home/user/project': [
+                ['app', vscode.FileType.Directory],
+                ['app.json', vscode.FileType.File],
+                ['app.ts', vscode.FileType.File],
+            ],
+            '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
         const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
         const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
@@ -275,48 +231,6 @@ invalid-line
         expect(mkdir).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app'));
         expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.json'), '');
         expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.ts'), '');
-    });
-
-    it('parses plain text with both directory and colliding file name', () => {
-        const input = `Directory structure:
-└── my-app/
-    ├── app/
-    │   └── index.ts
-    ├── app.json
-    └── package.json`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['my-app']).toBeDefined();
-        const root = getDirectory(structure, 'my-app');
-        expect(root.app).toEqual({ index: 'ts' });
-        expect(root['app.json']).toBeNull();
-    });
-
-    it('parsePlainTextToStructure strips # inline comments and produces clean names', () => {
-        const input = `Directory structure:
-├── commands/  # Used for commands
-│   └── index.ts
-└── setup.ts`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['commands']).toBeDefined();
-        const commands = getDirectory(structure, 'commands');
-        expect(commands['index']).toBe('ts');
-    });
-
-    it('parsePlainTextToStructure strips // inline comments and produces clean names', () => {
-        const input = `Directory structure:
-├── services/  // Used for services
-│   └── fileSystem.ts
-└── setup.ts`;
-
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(input);
-        expect(invalidLines).toEqual([]);
-        expect(structure['services']).toBeDefined();
-        const services = getDirectory(structure, 'services');
-        expect(services['fileSystem']).toBe('ts');
     });
 
     it('createStructure handles JSON with # inline comments', async () => {
@@ -342,47 +256,5 @@ invalid-line
 
         expect(mkdir).toHaveBeenCalled();
         expect(write).toHaveBeenCalled();
-    });
-
-    it('stripInlineComments preserves # inside a JSON quoted string value', () => {
-        const line = '  "notes": "Remember #important items"';
-        expect(StructureService.stripInlineComments(line)).toBe(line);
-    });
-
-    it('stripInlineComments preserves // inside a JSON quoted string value', () => {
-        const line = '  "path": "src/http//client.ts"';
-        expect(StructureService.stripInlineComments(line)).toBe(line);
-    });
-
-    it('stripInlineComments handles escaped quotes inside strings and strips trailing comment', () => {
-        // Runtime string fed to the scanner:
-        //   "msg": "He said \"hello\""  // comment
-        // The scanner sees \" inside the string (backslash-escape branch fires, skips the quote),
-        // so the string is never closed early. The // after the final " is outside the string
-        // and preceded by a space, so it is stripped.
-        const input = '{\n  "msg": "He said \\"hello\\""  // comment\n}';
-        const cleaned = StructureService.stripInlineComments(input);
-
-        // The cleaned text must be valid JSON — assert parse succeeds and value is correct.
-        let parsed: Record<string, unknown>;
-        expect(() => {
-            parsed = JSON.parse(cleaned) as Record<string, unknown>;
-        }).not.toThrow();
-        expect(parsed!['msg']).toBe('He said "hello"');
-
-        // Trailing comment must be gone.
-        expect(cleaned).not.toContain('// comment');
-    });
-
-    it('stripInlineComments preserves backslash sequences inside strings and strips the comment', () => {
-        const line = '  "path": "C:\\\\Users\\\\file.ts" // comment';
-        const result = StructureService.stripInlineComments(line);
-        expect(result).toContain('"C:\\\\Users\\\\file.ts"');
-        expect(result).not.toContain('// comment');
-    });
-
-    it('stripInlineComments strips comment outside quoted string and keeps the JSON value intact', () => {
-        const line = '  "index": "ts" // entry point';
-        expect(StructureService.stripInlineComments(line)).toBe('  "index": "ts"');
     });
 });

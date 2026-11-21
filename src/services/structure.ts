@@ -1,138 +1,48 @@
-import ignore from 'ignore';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { ERROR_MESSAGES } from '../constants';
-import { FileLeaf, FolderStructure, OutputFormat, TreeNode } from '../types';
 import {
-    fileLeafToFileNames,
+    formatJson,
+    formatPlainText,
     isDirectoryNode,
     isFileLeaf,
-    mergeFileExtension,
     normalizeFileLeafExtensions,
-} from '../utils/folderStructure';
-import { TreeParser } from '../utils/parser';
+    parseJsonWithComments,
+    parsePlainTextToStructure,
+    stripInlineComments,
+    traverseFolderStructure,
+    TreeParser,
+    validateJsonStructure,
+} from '@folder-structure-pro/core';
+import { ERROR_MESSAGES } from '../constants';
+import { FolderStructure, OutputFormat } from '../types';
 import { FileSystemService } from './fileSystem';
-import { PlainTextFormatter, JsonFormatter } from './formatters';
 import { GitignoreService } from './gitignore';
+import { VSCodeFileSystemAdapter } from '../adapters/vscodeFileSystem';
 
 export class StructureService {
-    private static relativeFromRoot(rootUri: vscode.Uri, targetUri: vscode.Uri): string {
-        const root = rootUri.path.replace(/\/+$/, '');
-        const target = targetUri.path;
-        if (!target.startsWith(root)) {
-            return target.replace(/^\/+/, '');
-        }
-        return target.slice(root.length).replace(/^\/+/, '');
-    }
-
-    private static uriBaseName(uri: vscode.Uri): string {
-        const segments = uri.path.split('/').filter(Boolean);
-        return segments[segments.length - 1] ?? uri.path;
-    }
-
     static async getStructure(dirUri: vscode.Uri): Promise<FolderStructure> {
-        const ignoreRules = await GitignoreService.loadRules(dirUri);
-        const ig = ignore().add(ignoreRules);
-        const folderName = this.uriBaseName(dirUri);
-        return {
-            [folderName]: await this.buildStructure(dirUri, ig, dirUri),
-        };
-    }
-
-    static async buildStructure(
-        dirUri: vscode.Uri,
-        ig: ReturnType<typeof ignore>,
-        rootUri: vscode.Uri,
-    ): Promise<FolderStructure> {
-        const structure: FolderStructure = {};
-        const entries = await FileSystemService.readdir(dirUri);
-
-        for (const entry of entries) {
-            const fullUri = vscode.Uri.joinPath(dirUri, entry.name);
-            const relFromRoot = this.relativeFromRoot(rootUri, fullUri);
-
-            if (entry.name.startsWith('.') || ig.ignores(relFromRoot)) {
-                continue;
-            }
-
-            const isDir = (entry.type & vscode.FileType.Directory) === vscode.FileType.Directory;
-            if (isDir) {
-                if (isFileLeaf(structure[entry.name])) {
-                    const prevLeaf = structure[entry.name] as FileLeaf;
-                    delete structure[entry.name];
-                    const fullNames = fileLeafToFileNames(entry.name, prevLeaf);
-                    for (const fn of fullNames) {
-                        structure[fn] = null;
-                    }
-                }
-                structure[entry.name] = await this.buildStructure(fullUri, ig, rootUri);
-            } else {
-                const ext = this.fileTypeFor(entry.name);
-                const base = this.baseNameFor(entry.name);
-                if (isDirectoryNode(structure[base])) {
-                    structure[entry.name] = null;
-                } else {
-                    structure[base] = mergeFileExtension(
-                        isFileLeaf(structure[base]) ? structure[base] : undefined,
-                        ext,
-                    );
-                }
-            }
-        }
-
-        return structure;
+        const fileSystem = new VSCodeFileSystemAdapter();
+        return traverseFolderStructure(
+            fileSystem,
+            fileSystem.toFolderPath(dirUri),
+            GitignoreService.getTraversalOptions(),
+        );
     }
 
     static formatStructure(structure: FolderStructure, format: OutputFormat): string {
-        const formatter =
-            format === 'Plain Text Format' ? new PlainTextFormatter() : new JsonFormatter();
-
-        return formatter.format(structure);
+        return format === 'Plain Text Format' ? formatPlainText(structure) : formatJson(structure);
     }
 
     static formatAsTree(structure: FolderStructure): string {
-        return new PlainTextFormatter().format(structure);
-    }
-
-    private static stripLineComment(line: string): string {
-        let inString = false;
-        let i = 0;
-        while (i < line.length) {
-            const ch = line[i];
-            if (inString) {
-                if (ch === '\\') {
-                    i += 2;
-                    continue; // skip escaped char
-                }
-                if (ch === '"') {
-                    inString = false;
-                }
-            } else {
-                if (ch === '"') {
-                    inString = true;
-                }
-                // Only strip comment markers preceded by whitespace (outside strings)
-                if (ch === '/' && line[i + 1] === '/') {
-                    if (i > 0 && /\s/.test(line[i - 1])) {
-                        return line.slice(0, i).trimEnd();
-                    }
-                }
-                if (ch === '#') {
-                    if (i > 0 && /\s/.test(line[i - 1])) {
-                        return line.slice(0, i).trimEnd();
-                    }
-                }
-            }
-            i++;
-        }
-        return line;
+        return formatPlainText(structure);
     }
 
     static stripInlineComments(text: string): string {
-        return text
-            .split('\n')
-            .map((line) => StructureService.stripLineComment(line))
-            .join('\n');
+        return stripInlineComments(text);
+    }
+
+    static parseJsonStructure(text: string): unknown {
+        return parseJsonWithComments(text);
     }
 
     static async createStructure(
@@ -148,8 +58,7 @@ export class StructureService {
             await this.createFromPlainText(baseUri, content);
         } else {
             try {
-                const cleaned = this.stripInlineComments(content);
-                const structure = JSON.parse(cleaned);
+                const structure = this.parseJsonStructure(content);
                 if (!this.validateJsonStructure(structure)) {
                     throw new Error(
                         'Invalid JSON structure: use nested objects for folders and string file types for files',
@@ -226,148 +135,30 @@ export class StructureService {
     }
 
     static fileTypeFor(name: string): string {
-        const ext = path.extname(name);
-        if (!ext) {
+        const extension = path.extname(name);
+        if (!extension) {
             return 'file';
         }
-        return ext.replace(/^\./, '') || 'file';
+        return extension.replace(/^\./, '') || 'file';
     }
 
     static baseNameFor(name: string): string {
-        const ext = path.extname(name);
-        if (!ext) {
-            return name;
-        }
-        return name.slice(0, -ext.length);
+        const extension = path.extname(name);
+        return extension ? name.slice(0, -extension.length) : name;
     }
 
-    private static setFileExtension(
-        ctx: FolderStructure,
-        base: string,
-        extension: string,
-        fullName?: string,
-    ): void {
-        if (isDirectoryNode(ctx[base])) {
-            const actualName = fullName ?? (extension === 'file' ? base : `${base}.${extension}`);
-            ctx[actualName] = null;
-            return;
-        }
-        const current = ctx[base];
-        const currentLeaf = isFileLeaf(current) ? current : undefined;
-        ctx[base] = mergeFileExtension(currentLeaf, extension);
-    }
-
-    // Validation helpers for webview
     static parsePlainTextToStructure(content: string): {
         structure: FolderStructure;
         invalidLines: number[];
     } {
-        const lines = content.split('\n');
-        const pathStack: string[] = [];
-        const structure: FolderStructure = {};
-        const invalidLines: number[] = [];
-
-        const getContext = (stack: string[]): FolderStructure =>
-            stack.reduce<FolderStructure>((ctx, segment) => {
-                const next = (ctx[segment] ?? {}) as FolderStructure;
-                ctx[segment] = next;
-                return next;
-            }, structure);
-
-        lines.forEach((line, idx) => {
-            if (idx === 0) {
-                return;
-            }
-            if (!line.trim() || /Directory structure:/i.test(line)) {
-                return;
-            }
-            const node: TreeNode | null = TreeParser.parseLine(line);
-            if (!node || !node.name) {
-                const hasConnector = /├|└|\|--|`--/.test(line);
-                if (hasConnector) {
-                    invalidLines.push(idx + 1);
-                }
-                return;
-            }
-
-            if (node.level === 0) {
-                pathStack.length = 0;
-                const ctx = getContext([]);
-                if (node.isDirectory) {
-                    if (isFileLeaf(ctx[node.name])) {
-                        const prevLeaf = ctx[node.name] as FileLeaf;
-                        delete ctx[node.name];
-                        const fullNames = fileLeafToFileNames(node.name, prevLeaf);
-                        for (const fn of fullNames) {
-                            ctx[fn] = null;
-                        }
-                    }
-                    ctx[node.name] = ctx[node.name] ?? {};
-                    pathStack.push(node.name);
-                } else {
-                    const type = this.fileTypeFor(node.name);
-                    const base = this.baseNameFor(node.name);
-                    this.setFileExtension(ctx, base, type, node.name);
-                }
-                return;
-            }
-
-            if (node.level > pathStack.length) {
-                if (node.level !== pathStack.length + 1) {
-                    invalidLines.push(idx + 1);
-                    return;
-                }
-            }
-            while (pathStack.length > node.level) {
-                pathStack.pop();
-            }
-            const ctx = getContext(pathStack);
-            if (node.isDirectory) {
-                if (isFileLeaf(ctx[node.name])) {
-                    const prevLeaf = ctx[node.name] as FileLeaf;
-                    delete ctx[node.name];
-                    const fullNames = fileLeafToFileNames(node.name, prevLeaf);
-                    for (const fn of fullNames) {
-                        ctx[fn] = null;
-                    }
-                }
-                ctx[node.name] = ctx[node.name] ?? {};
-                pathStack.push(node.name);
-            } else {
-                const type = this.fileTypeFor(node.name);
-                const base = this.baseNameFor(node.name);
-                this.setFileExtension(ctx, base, type, node.name);
-            }
+        return parsePlainTextToStructure(content, {
+            getFileType: (name) => this.fileTypeFor(name),
+            getBaseName: (name) => this.baseNameFor(name),
         });
-
-        return { structure, invalidLines };
     }
 
     static validateJsonStructure(obj: unknown): obj is FolderStructure {
-        if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
-            return false;
-        }
-        for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-            if (typeof k !== 'string') {
-                return false;
-            }
-            if (typeof v === 'string' || v === null) {
-                continue;
-            }
-            if (Array.isArray(v)) {
-                if (v.length === 0) {
-                    return false;
-                }
-                if (!v.every((item) => typeof item === 'string' || item === null)) {
-                    return false;
-                }
-                continue;
-            }
-            if (!this.validateJsonStructure(v)) {
-                return false;
-            }
-        }
-        return true;
+        return validateJsonStructure(obj);
     }
 }
 

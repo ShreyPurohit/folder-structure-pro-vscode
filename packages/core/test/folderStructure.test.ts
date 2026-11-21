@@ -2,14 +2,30 @@ import { describe, expect, it } from 'vitest';
 import {
     fileLeafToDisplayNames,
     fileLeafToFileNames,
+    baseNameFor,
+    fileTypeFor,
     isDirectoryNode,
     isFileLeaf,
     mergeFileExtension,
     normalizeFileLeafExtensions,
-} from '../../src/utils/folderStructure';
-import type { FileLeaf, FolderStructure } from '../../src/types';
+} from '../src/folderStructure.js';
+import type { FileLeaf, FolderStructure } from '../src/folderStructure.js';
 
 describe('folderStructure helpers', () => {
+    it('converts basenames and extensions without platform path APIs', () => {
+        expect(fileTypeFor('index.ts')).toBe('ts');
+        expect(fileTypeFor('Dockerfile')).toBe('file');
+        expect(fileTypeFor('.env')).toBe('file');
+        expect(fileTypeFor('archive.tar.gz')).toBe('gz');
+        expect(fileTypeFor('file.')).toBe('file');
+        expect(fileTypeFor('folder.name/file')).toBe('file');
+        expect(baseNameFor('index.ts')).toBe('index');
+        expect(baseNameFor('README')).toBe('README');
+        expect(baseNameFor('.env')).toBe('.env');
+        expect(baseNameFor('file.')).toBe('file');
+        expect(baseNameFor('folder.name/file')).toBe('folder.name/file');
+    });
+
     it('identifies directory nodes', () => {
         const dir: FolderStructure = { src: {} };
         expect(isDirectoryNode(dir)).toBe(true);

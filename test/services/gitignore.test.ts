@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as vscode from 'vscode';
 import { GitignoreService } from '../../src/services/gitignore';
-import { FileSystemService } from '../../src/services/fileSystem';
 import { resetVscodeMocks, mockConfigurationGet } from '../__mocks__/vscode';
 
 describe('GitignoreService', () => {
@@ -10,42 +8,38 @@ describe('GitignoreService', () => {
         vi.restoreAllMocks();
     });
 
-    it('loads default ignore patterns from configuration', async () => {
-        const dirUri = vscode.Uri.file('/workspace/project');
-        await expect(GitignoreService.loadRules(dirUri)).resolves.toEqual(['node_modules', '.*']);
+    it('reads default traversal filters from configuration', () => {
+        expect(GitignoreService.getTraversalOptions()).toEqual({
+            ignorePatterns: ['node_modules', '.*'],
+            respectGitignore: true,
+        });
     });
 
-    it('merges gitignore file rules when enabled', async () => {
-        const dirUri = vscode.Uri.file('/workspace/project');
-        vi.spyOn(FileSystemService, 'exists').mockResolvedValue(true);
-        vi.spyOn(FileSystemService, 'readFile').mockResolvedValue('dist/\n# comment\nbuild/');
-
-        const rules = await GitignoreService.loadRules(dirUri);
-        expect(rules).toEqual(['node_modules', '.*', 'dist/', 'build/']);
-    });
-
-    it('skips gitignore file when respectGitignore is disabled', async () => {
-        const dirUri = vscode.Uri.file('/workspace/project');
+    it('returns configured traversal filters without reading filesystem content', () => {
         mockConfigurationGet.mockImplementation((key: string, defaultValue?: unknown) => {
             if (key === 'respectGitignore') {
                 return false;
             }
             if (key === 'ignorePatterns') {
-                return ['node_modules'];
+                return ['dist'];
             }
             return defaultValue;
         });
-        vi.spyOn(FileSystemService, 'readFile').mockResolvedValue('dist/');
 
-        const rules = await GitignoreService.loadRules(dirUri);
-        expect(rules).toEqual(['node_modules']);
-        expect(FileSystemService.readFile).not.toHaveBeenCalled();
+        expect(GitignoreService.getTraversalOptions()).toEqual({
+            ignorePatterns: ['dist'],
+            respectGitignore: false,
+        });
     });
 
-    it('checks whether a relative path is ignored', () => {
-        expect(GitignoreService.isIgnored('node_modules/pkg/index.js', ['node_modules'])).toBe(
-            true,
-        );
-        expect(GitignoreService.isIgnored('src/index.ts', ['node_modules'])).toBe(false);
+    it('uses the configuration defaults when settings are absent', () => {
+        mockConfigurationGet.mockImplementation((key: string, defaultValue?: unknown) => {
+            return defaultValue;
+        });
+
+        expect(GitignoreService.getTraversalOptions()).toEqual({
+            ignorePatterns: ['node_modules', '.*'],
+            respectGitignore: true,
+        });
     });
 });

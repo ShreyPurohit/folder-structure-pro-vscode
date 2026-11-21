@@ -28,14 +28,19 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v5
 
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 12.21.0
+
             - name: Setup Node.js
               uses: actions/setup-node@v5
               with:
                   node-version: '24'
-                  cache: npm
+                  cache: pnpm
 
             - name: Install dependencies
-              run: npm ci
+              run: pnpm install --frozen-lockfile
 
             - name: Resolve package version
               id: meta
@@ -47,7 +52,7 @@ jobs:
                   echo "vsix=${VSIX}" >> "$GITHUB_OUTPUT"
 
             - name: Build VSIX
-              run: npx --yes @vscode/vsce@4.0.0 package --out "${{ steps.meta.outputs.vsix }}"
+              run: pnpm dlx @vscode/vsce@4.0.0 package --no-dependencies --out "${{ steps.meta.outputs.vsix }}"
 
             - name: Upload VSIX artifact
               uses: actions/upload-artifact@v6

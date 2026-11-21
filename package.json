@@ -2,6 +2,7 @@
   "name": "copy-folder-structure",
   "displayName": "Folder Structure Pro",
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
+  "packageManager": "pnpm@12.21.0",
   "publisher": "iamshreydxv",
   "version": "0.2.5",
   "engines": {
@@ -145,22 +146,24 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
-    "watch": "npm-run-all -p watch:*",
+    "vscode:prepublish": "pnpm run package",
+    "build:core": "pnpm --filter @folder-structure-pro/core build",
+    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "watch": "pnpm run build:core && npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
-    "check-types": "tsc --noEmit",
-    "check-types:test": "tsc --noEmit -p test/tsconfig.json",
+    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "check-types": "pnpm run build:core && tsc --noEmit && pnpm --filter folder-structure-pro run check-types:built",
+    "check-types:test": "pnpm run build:core && tsc --noEmit -p test/tsconfig.json",
     "lint": "eslint src",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "pnpm run build:core && vitest run && pnpm --filter @folder-structure-pro/core test && pnpm --filter folder-structure-pro run build:bundle && pnpm --filter folder-structure-pro run test:built",
+    "test:watch": "pnpm run build:core && vitest",
+    "test:coverage": "pnpm run build:core && vitest run --coverage"
   },
   "devDependencies": {
+    "@folder-structure-pro/core": "workspace:*",
     "@types/node": "^20.19.42",
     "@types/vscode": "^1.54.0",
     "@typescript-eslint/eslint-plugin": "^8.61.0",
