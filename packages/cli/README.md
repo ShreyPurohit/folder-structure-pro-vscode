@@ -1,7 +1,10 @@
 # Folder Structure Pro CLI
 
 The CLI supports interactive and direct `copy`, `export`, and `create`
-operations. It requires Node.js `>=22.14.0`.
+operations. The package is `folder-structure-pro@0.1.0`; it remains private
+(`private: true`) and has not been published to npm. It declares Node.js
+`>=22.14.0`. CI currently validates Node 24 on Windows and Ubuntu; the declared
+minimum version and macOS have not been validated.
 
 ## Build and run
 
@@ -12,9 +15,10 @@ pnpm --filter folder-structure-pro build
 node packages/cli/dist/index.js
 ```
 
-To build the CLI, create a local package tarball, install it into an isolated
-temporary npm consumer, and validate the installed executable without
-publishing:
+This builds the CLI, creates a local package tarball, installs that tarball
+into an isolated temporary npm consumer, and validates the installed
+executable. The consumer installation is a local validation only; it does not
+publish the package:
 
 ```sh
 pnpm --filter folder-structure-pro run validate-package
@@ -42,7 +46,8 @@ The directory defaults to the current working directory. `--format` accepts
 `--exclude` can be repeated; `--hidden` includes hidden entries; and
 `--no-gitignore` disables root `.gitignore` filtering. `node_modules` remains
 excluded. Clipboard failures are reported on stderr and never redirect the
-structure to another destination.
+structure to another destination. Clipboard access may be unavailable in
+headless Linux environments; export the structure to a file instead.
 
 ### Export to a file or stdout
 
@@ -124,5 +129,5 @@ options and examples.
   write target between those operations. Creation revalidates planned paths,
   but operations are not a race-free or atomic tree transaction.
 - The destination directory is not created implicitly.
-- The CLI is not published. Configuration files, dry-run, shell completion,
-  and batch status summaries are not implemented.
+- Configuration files, dry-run, shell completion, and batch status summaries
+  are not implemented.
