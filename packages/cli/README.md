@@ -2,6 +2,11 @@
 
 **Generate, copy, export, and recreate project folder structures from your terminal.**
 
+[![npm version](https://img.shields.io/npm/v/folder-structure-pro)](https://www.npmjs.com/package/folder-structure-pro)
+[![npm downloads](https://img.shields.io/npm/dw/folder-structure-pro)](https://www.npmjs.com/package/folder-structure-pro)
+[![CI](https://github.com/ShreyPurohit/folder-structure-pro-vscode/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ShreyPurohit/folder-structure-pro-vscode/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/ShreyPurohit/folder-structure-pro-vscode)](./LICENSE)
+
 Folder Structure Pro helps you view, share, and recreate directory structures without manually writing them out.
 
 Whether you need to share your project structure with an AI assistant, document your files, or recreate a directory layout in another location, Folder Structure Pro makes it simple.
@@ -276,11 +281,11 @@ Folder Structure Pro is open source, and contributions are welcome!
 
 You can help by reporting bugs, suggesting features, improving documentation, or submitting code.
 
-Before contributing, please read the [Contributing Guide](../../CONTRIBUTING.md) for development setup, testing instructions, and the pull request process.
+Before contributing, please read the [Contributing Guide](https://github.com/ShreyPurohit/folder-structure-pro-vscode/blob/main/CONTRIBUTING.md) for development setup, testing instructions, and the pull request process.
 
 - [Report a bug](https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues)
 - [Start a discussion](https://github.com/ShreyPurohit/folder-structure-pro-vscode/discussions)
-- [View the Contributing Guide](../../CONTRIBUTING.md)
+- [View the Contributing Guide](https://github.com/ShreyPurohit/folder-structure-pro-vscode/blob/main/CONTRIBUTING.md)
 
 ## License
 
