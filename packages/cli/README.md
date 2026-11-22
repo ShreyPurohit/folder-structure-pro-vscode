@@ -1,128 +1,231 @@
 # Folder Structure Pro CLI
 
-The CLI supports interactive and direct `copy`, `export`, and `create`
-operations for generating, copying, exporting, and creating directory
-structures. It requires Node.js `>=22.14.0`.
+**Generate, copy, export, and create directory structures right from your terminal.**
 
-## Installation
+Folder Structure Pro makes it easy to view and share your project's folder structure without manually writing it out.
 
-Install the CLI globally with npm:
+Use the interactive menu or run commands directly. Whether you want to copy a folder tree, save it as a file, or create a directory structure from an existing one, the CLI has you covered.
 
-```sh
-npm install --global folder-structure-pro
+## Features
+
+- **Interactive mode** – Choose what you want to do through a simple terminal menu.
+- **Copy to clipboard** – Copy your folder structure with a single command.
+- **Export** – Save your structure as a plain text or JSON file.
+- **Create** – Recreate directories and files from a previously exported structure.
+- **Flexible filtering** – Exclude specific files and folders, include hidden entries, or respect `.gitignore`.
+- **Control the depth** – Limit how many directory levels you want to include.
+
+![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/Folder-Structure-Pro-CLI.png)
+
+## Requirements
+
+- Node.js `>=22.14.0`
+
+## Getting started
+
+### Run without installing
+
+Want to try Folder Structure Pro without installing it globally? Run it directly using your package runner.
+
+**Using npm:**
+
+```bash
+npx folder-structure-pro
+```
+
+**Using pnpm (recommended):**
+
+```bash
+pnpm dlx folder-structure-pro
+```
+
+You can also use `pnpx`, the older pnpm equivalent:
+
+```bash
+pnpx folder-structure-pro
+```
+
+These commands fetch and run the package when needed. You don't need to install it globally.
+
+### Install globally (optional)
+
+If you plan to use Folder Structure Pro regularly, you can install it globally.
+
+**Using npm:**
+
+```bash
+npm install -g folder-structure-pro
+```
+
+**Using pnpm:**
+
+```bash
+pnpm add -g folder-structure-pro
 ```
 
 Then run:
 
-```sh
-folder-structure-pro --help
+```bash
+folder-structure-pro
 ```
 
-With no arguments, a TTY opens the interactive menu. In non-TTY use, provide an
-explicit command; otherwise the CLI exits with status 2 instead of prompting.
-Explicit commands never prompt.
+## Interactive mode
+
+Simply run the command without any arguments:
+
+```bash
+folder-structure-pro
+```
+
+Choose an action, select the directory to scan, adjust filtering options, and decide where the structure should go.
+
+The CLI takes care of the rest.
+
+> Interactive mode requires a terminal that supports prompts. When using a non-interactive environment, provide an explicit command instead.
 
 ## Commands
 
-### Copy to the clipboard
+### 1. Copy a folder structure
 
-```sh
+Copy the generated structure directly to your clipboard.
+
+```bash
 folder-structure-pro copy [directory] [options]
 ```
 
-```sh
+Examples:
+
+```bash
+# Copy the current directory
+folder-structure-pro copy
+
+# Copy a specific directory
+folder-structure-pro copy ./src
+
+# Copy as JSON, limit depth, and exclude folders
 folder-structure-pro copy . --format json --depth 3 --exclude dist --exclude coverage
-folder-structure-pro copy src --hidden --no-gitignore
 ```
 
-The directory defaults to the current working directory. `--format` accepts
-`text` or `json` (default: `text`); `--depth` is a non-negative whole number;
-`--exclude` can be repeated; `--hidden` includes hidden entries; and
-`--no-gitignore` disables root `.gitignore` filtering. `node_modules` remains
-excluded. Clipboard failures are reported on stderr and never redirect the
-structure to another destination. Clipboard access may be unavailable in
-headless Linux environments; use `export --output <file>` to write it to a
-file or `export --output -` to write the structure to stdout instead.
+The directory defaults to your current working directory.
 
-### Export to a file or stdout
+### 2. Export a folder structure
 
-```sh
+Save the generated structure to a file or print it to standard output.
+
+```bash
 folder-structure-pro export [directory] --output <file|->
 ```
 
-```sh
-folder-structure-pro export . --output folder.txt
-folder-structure-pro export src --format json --output -
-folder-structure-pro export . --output folder.txt --force
+Examples:
+
+```bash
+# Export to a text file
+folder-structure-pro export . --output folder-structure.txt
+
+# Export as JSON
+folder-structure-pro export . --format json --output structure.json
+
+# Print the structure to stdout
+folder-structure-pro export . --output -
+
+# Overwrite an existing regular file
+folder-structure-pro export . --output folder-structure.txt --force
 ```
 
-The scan options are the same as `copy`. `--output` is required; `-` writes
-only the structure (and its trailing newline) to stdout. Diagnostics go to
-stderr. The output parent must already exist. Existing regular files are
-refused unless `--force` is supplied; directories, symlinks, and entries with
-unknown metadata are not overwritten. The check and write are separate:
-`--force` cannot prevent a concurrent path replacement (including a symlink
-swap) between validation and writing.
+The output directory must already exist. Existing files are not overwritten unless you explicitly pass `--force`.
 
-### Create from a structure file
+### 3. Create a folder structure
 
-```sh
+Create directories and empty files from a previously exported text or JSON structure.
+
+```bash
 folder-structure-pro create <structure-file> --format <text|json> --yes [options]
 ```
 
-```sh
+Examples:
+
+```bash
+# Create from a text structure
 folder-structure-pro create structure.txt --format text --to ./new-project --yes
+
+# Create from a JSON structure
+folder-structure-pro create structure.json --format json --to ./new-project --yes
+
+# Skip files that already exist
 folder-structure-pro create structure.json --format json --to . --yes --on-conflict skip
-folder-structure-pro create structure.txt --format text --to . --yes --on-conflict replace
 ```
 
-The destination defaults to the current working directory and must already
-exist. Plain text keeps the existing parser contract: its first line is an
-ignored header, followed by tree entries. JSON uses the shared core parser.
-Invalid input, unsafe names, duplicate paths, type collisions, and unsupported
-destination metadata fail before creation.
+The destination defaults to the current working directory and must already exist.
 
-`--yes` is required for every direct creation. `--on-conflict` accepts:
+Choose how existing files should be handled with `--on-conflict`:
 
-- `fail` (default): stop without changes if existing file conflicts are found.
-- `skip`: keep existing file contents and create other planned entries.
-- `replace`: replace existing regular files with empty files. Directories,
-  symlinks, and entries with unknown metadata are never replaced.
+| Option           | Behavior                                              |
+| ---------------- | ----------------------------------------------------- |
+| `fail` (default) | Stop if conflicting files are found.                  |
+| `skip`           | Keep existing files and create the remaining entries. |
+| `replace`        | Replace existing regular files with empty files.      |
 
-Replacement therefore requires both `--on-conflict replace` and `--yes`.
-Creation is not atomic; completed operations may remain after a later failure.
-The CLI does not roll back or recursively delete user data.
+The `--yes` option is required for direct creation. Replacing files requires both `--yes` and `--on-conflict replace`.
 
-## Help and exit codes
+## Filtering options
 
-Use `folder-structure-pro --help` or append `--help` to a command for its
-options and examples.
+Use these options with `copy` and `export` to control what gets included:
 
-- `0`: success, help, or interactive cancellation.
-- `1`: execution, validation, filesystem, or clipboard failure.
-- `2`: invalid command/arguments or non-TTY invocation without a command.
+| Option                  | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| `--format <text\|json>` | Output format. Defaults to `text`.                      |
+| `--depth <number>`      | Maximum directory depth. Unlimited when omitted.        |
+| `--exclude <pattern>`   | Exclude files or directories. Can be repeated.          |
+| `--hidden`              | Include hidden files and directories.                   |
+| `--no-gitignore`        | Disable root `.gitignore` filtering.                    |
+| `--output <file\|->`    | Export destination. `-` writes the structure to stdout. |
+| `--force`               | Allow export to overwrite an existing regular file.     |
 
-## Filtering behavior
+Additional behavior:
 
-- Hidden files and directories are excluded by default; `--hidden` includes
-  them without disabling explicit exclusions or `.gitignore`.
-- `node_modules` remains excluded.
-- Root `.gitignore` rules are respected by default and can be disabled with
-  `--no-gitignore`.
-- Repeated `--exclude` patterns are additive.
-- Maximum depth is optional and unlimited when omitted.
-- Directory symlinks are not traversed; a symbolic-link scan root is rejected.
+- `node_modules` is always excluded.
+- Hidden files and directories are excluded by default.
+- Root `.gitignore` rules are respected by default.
+- Multiple `--exclude` patterns can be supplied.
+- Directory symlinks are not traversed, and a symbolic-link scan root is rejected.
 
-## Limitations
+## Help
 
-- Only the root `.gitignore` is used, matching shared-core behavior; nested
-  ignore-file semantics are not implemented.
-- Export does not create parent directories.
-- Node filesystem checks and writes cannot eliminate all time-of-check/time-of-
-  use races. In particular, `export --force` checks the target before writing,
-  but a concurrent path replacement (including a symlink swap) can change the
-  write target between those operations. Creation revalidates planned paths,
-  but operations are not a race-free or atomic tree transaction.
-- The destination directory is not created implicitly.
-- Configuration files, dry-run, shell completion, and batch status summaries
-  are not implemented.
+Need a quick reminder of available commands and options?
+
+```bash
+folder-structure-pro --help
+```
+
+You can also get help for an individual command:
+
+```bash
+folder-structure-pro copy --help
+folder-structure-pro export --help
+folder-structure-pro create --help
+```
+
+## Exit codes
+
+| Code | Meaning                                                                        |
+| ---- | ------------------------------------------------------------------------------ |
+| `0`  | Success, help, or interactive cancellation.                                    |
+| `1`  | Execution, validation, filesystem, or clipboard failure.                       |
+| `2`  | Invalid command or arguments, or non-interactive invocation without a command. |
+
+## Limitations and safety notes
+
+- Only the root `.gitignore` is used. Nested ignore-file rules are not supported.
+- Export does not create missing parent directories.
+- The destination directory for `create` must already exist.
+- Creation is not atomic. If an operation fails partway through, previously completed changes may remain. The CLI does not roll back or recursively delete user data.
+- Existing directories, symlinks, and entries with unknown metadata are never replaced during creation.
+- Filesystem checks cannot eliminate every possible race involving concurrent path changes.
+
+## License
+
+[MIT](LICENSE) © Shrey Purohit
+
+If you find Folder Structure Pro useful, consider giving the project a star on GitHub!
+
+[GitHub Repository](https://github.com/ShreyPurohit/folder-structure-pro-vscode)
