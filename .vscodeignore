@@ -21,6 +21,6 @@ packages/**
 pnpm-lock.yaml
 pnpm-workspace.yaml
 assets/*
-!assets/icon.webp
+!assets/icon.png
 .prettierignore
 .kiro
