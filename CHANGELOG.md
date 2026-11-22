@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.2.6] - 2026-11-23
+
+### Added
+
+- Standalone CLI package, `folder-structure-pro`, allowing users to copy, export, and create folder structures directly from the command line.
+- npm package version badge and CLI installation instructions in the extension README.
+- Documentation linking the VS Code extension with its standalone CLI package.
+
 ## [0.2.5] - 2026-10-11
 
 ### Added

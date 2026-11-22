@@ -4,7 +4,7 @@
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
   "packageManager": "pnpm@12.21.0",
   "publisher": "iamshreydxv",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -213,7 +213,11 @@
     "productivity",
     "developer tools",
     "workspace fs",
-    "remote"
+    "remote",
+    "cli",
+    "command line",
+    "terminal",
+    "npm"
   ],
   "repository": {
     "type": "git",

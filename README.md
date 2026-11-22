@@ -7,8 +7,11 @@
   <a href="https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues">
     <img src="https://img.shields.io/github/issues/ShreyPurohit/folder-structure-pro-vscode" alt="Open Issues"/>
   </a>
-  <a href="https://github.com/sponsors/ShreyPurohit"> 
-    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ff69b4?style=flat-square&logo=github" alt="Sponsor me on GitHub" /> 
+  <a href="https://www.npmjs.com/package/folder-structure-pro">
+    <img src="https://img.shields.io/npm/v/folder-structure-pro" alt="npm version"/>
+  </a>
+  <a href="https://github.com/sponsors/ShreyPurohit">
+    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ff69b4?style=flat-square&logo=github" alt="Sponsor me on GitHub"/>
   </a>
 </p>
 
@@ -22,8 +25,9 @@
 
 - [Features](#features)
 - [Quick Start](#quick-start)
-- [Settings](#settings)
+    - [Command-Line Interface (NEW!)](#-command-line-interface-new)
 - [How to Use](#how-to-use)
+- [Settings](#settings)
 - [Live Previews](#live-previews)
 - [Output Examples](#output-examples)
 - [How It Works](#how-it-works)
@@ -73,32 +77,44 @@
 3. 🎯 **Choose** "Copy Folder Structure As" or "Create Folder Structure"
 4. 🎉 **Done!** Your structure is ready to use
 
-### Command-Line Interface
+### ⚡ Command-Line Interface **(NEW!)**
 
-Prefer working from the terminal? Folder Structure Pro also includes a CLI
-companion for copying, exporting, and creating folder structures from the
-command line.
+**Prefer the terminal? Folder Structure Pro is now available as a standalone CLI!**
 
-The CLI package is currently available in this repository, remains private,
-and has not yet been published to npm. See the
-[CLI documentation](./packages/cli/README.md) for its capabilities and current
-development status. npm installation instructions and a link to the npm
-package will be added here after publication. The CLI requires Node.js
-`>=22.14.0`.
+Generate, copy, export, and recreate project folder structures directly from your terminal — without opening VS Code.
 
-To try it from a local repository checkout:
+**Install and get started:**
 
-```sh
-pnpm --filter folder-structure-pro build
-node packages/cli/dist/index.js
-node packages/cli/dist/index.js export . --output -
-node packages/cli/dist/index.js create structure.json --format json --yes
+```bash
+# Run directly without a global installation
+npx folder-structure-pro
 ```
 
-It supports plain-text or JSON output, clipboard copy, stdout/file export, and
-confirmed creation from validated plain-text or JSON structures. See
-the CLI documentation for command options, filtering defaults, safety behavior,
-and limitations.
+Or install it globally:
+
+```bash
+npm install -g folder-structure-pro
+```
+
+**Quick examples:**
+
+```bash
+# Copy the current project's structure
+folder-structure-pro copy
+
+# Export a structure to a text file
+folder-structure-pro export . --output folder-structure.txt
+
+# Recreate a project from an exported structure
+folder-structure-pro create structure.txt --format text --to ./new-project --yes
+```
+
+The CLI supports interactive mode, clipboard copying, text and JSON formats, flexible filtering, and safe structure creation.
+
+- 📦 **[Get it on npm](https://www.npmjs.com/package/folder-structure-pro)**
+- 📖 **[Read the CLI documentation](./packages/cli/README.md)**
+
+Requires Node.js `>=22.14.0`.
 
 <hr style="border: 2px solid black; width: 100%; " />
 
@@ -136,8 +152,8 @@ Configure the extension to work exactly how you want:
 - 📄 **outputFormat**: Choose between JSON Format or Plain Text Format
 - 🚫 **ignorePatterns**: Specify patterns to ignore when copying structures
 - 🙈 **respectGitignore**: Honor .gitignore rules (recommended: enabled)
-- 🧩 **includecolumn**: _(NEW!)_ Include column number in copied path:line
-- 🛣️ **useAbsolutePath**: _(NEW!)_ Use absolute paths instead of workspace-relative
+- 🧩 **includecolumn**: Include column number in copied path:line
+- 🛣️ **useAbsolutePath**: Use absolute paths instead of workspace-relative
 
 ### 🎛️ Settings Preview
 
@@ -165,7 +181,7 @@ Configure the extension to work exactly how you want:
 
 <img src="./assets/usage_with_gitIngest.gif" alt="Git Ingest Integration Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
-### 📋 Copy Line Path **(NEW!!)**
+### 📋 Copy Line Path
 
 <img src="./assets/copy_path_line.gif" alt="Copy Line Path Demo" style="width: 100%; border: 4px solid rgba(255, 255, 255, 0.9); border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
 
