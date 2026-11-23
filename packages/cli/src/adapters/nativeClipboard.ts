@@ -100,6 +100,7 @@ export const runClipboardCommand: RunClipboardCommand = (clipboardCommand, input
         // Only 'exit' is awaited, never 'close': xclip, xsel and wl-copy fork a background
         // process that keeps serving the selection and holds the inherited pipes open.
         const child = spawn(clipboardCommand.command, clipboardCommand.args, {
+            shell: false,
             stdio: ['pipe', 'ignore', 'pipe'],
             env: { ...process.env, ...clipboardCommand.env },
             windowsHide: true,
@@ -156,6 +157,9 @@ function describeMissingTools(platform: NodeJS.Platform, commands: ClipboardComm
     }
     if (platform === 'win32') {
         return 'Neither PowerShell nor clip.exe could be started.';
+    }
+    if (process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux')) {
+        return 'Clipboard unavailable. Install Termux:API and the termux-api package to enable clipboard access.';
     }
     return `${commands[0].command} was not found.`;
 }
