@@ -46,7 +46,7 @@ jobs:
                   package-manager-cache: false
 
             - name: Use npm 11
-              run: npm install -g npm@11
+              run: npm install -g npm@11.21.3
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
@@ -57,12 +57,12 @@ jobs:
             - name: Build and test CLI package
               run: pnpm --filter folder-structure-pro test
 
-            - name: Publish to npm
+            - name: Stage package on npm
               working-directory: packages/cli/.release
               shell: bash
               run: |
                   if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-                    npm publish --provenance --access public --dry-run
+                    npm stage publish --provenance --access public --dry-run
                   else
-                    npm publish --provenance --access public
+                    npm stage publish --provenance --access public
                   fi
