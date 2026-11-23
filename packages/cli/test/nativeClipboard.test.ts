@@ -89,6 +89,16 @@ describe('writeNativeClipboard', () => {
         );
     });
 
+    it('gives Termux-specific guidance when its clipboard tool is missing', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('not found'));
+
+        await expect(
+            writeNativeClipboard('hi', 'linux', { TERMUX_VERSION: '0.118' }, run),
+        ).rejects.toThrow(
+            'Clipboard unavailable. Install Termux:API and the termux-api package to enable clipboard access.',
+        );
+    });
+
     it('reports only the tools that actually failed', async () => {
         const run = vi
             .fn()

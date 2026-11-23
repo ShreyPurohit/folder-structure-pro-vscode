@@ -11,10 +11,10 @@
 
 ### Changed
 
-- Removed the `clipboardy` dependency. The CLI now has no runtime dependencies and uses your system's clipboard tool directly (`pbcopy`, PowerShell or `clip.exe`, `wl-copy`, `xclip`, `xsel`, `termux-clipboard-set`), which also clears the dependency alerts shown by supply-chain scanners.
-- Clipboard failures are explained in plain language, one reason per line, with the tool to install on Linux (for example `sudo apt install xclip`).
+- This removes `clipboardy` and its transitive dependencies from the CLI package.
+- Clipboard failures are explained in plain language, one reason per line, including which clipboard tool to install on Linux (for example, `sudo apt install xclip`).
 - The success message says "Sent … to your terminal's clipboard" when the copy could not be confirmed, with a hint to use `export --output` if the paste is empty.
-- Over SSH, the CLI now asks your own terminal to set the clipboard first, so a copy is no longer made on the remote machine's clipboard (macOS and Windows servers). A forwarded X11 or Wayland display on Linux is still used.
+- Over SSH, the CLI now asks your local terminal emulator to update its clipboard first, rather than attempting to copy to the remote machine's clipboard. A forwarded X11 or Wayland display on Linux is still used.
 
 ## [0.1.0] - 2026-11-23
 
