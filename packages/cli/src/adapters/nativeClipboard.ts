@@ -151,16 +151,23 @@ export class MissingClipboardToolError extends Error {
     }
 }
 
-function describeMissingTools(platform: NodeJS.Platform, commands: ClipboardCommand[]): string {
+function describeMissingTools(
+    platform: NodeJS.Platform,
+    commands: ClipboardCommand[],
+    env: NodeJS.ProcessEnv,
+): string {
+    if (env.TERMUX_VERSION || env.PREFIX?.includes('com.termux')) {
+        return 'Clipboard unavailable. Install Termux:API and the termux-api package to enable clipboard access.';
+    }
+
     if (platform === 'linux') {
         return 'No clipboard tool found. Install xclip, xsel or wl-clipboard (for example: sudo apt install xclip).';
     }
+
     if (platform === 'win32') {
         return 'Neither PowerShell nor clip.exe could be started.';
     }
-    if (process.env.TERMUX_VERSION || process.env.PREFIX?.includes('com.termux')) {
-        return 'Clipboard unavailable. Install Termux:API and the termux-api package to enable clipboard access.';
-    }
+
     return `${commands[0].command} was not found.`;
 }
 
@@ -199,7 +206,7 @@ export async function writeNativeClipboard(
     }
 
     if (failures.every((failure) => failure.reason === NOT_FOUND)) {
-        throw new MissingClipboardToolError(describeMissingTools(platform, commands));
+        throw new MissingClipboardToolError(describeMissingTools(platform, commands, env));
     }
     throw new Error(
         failures
