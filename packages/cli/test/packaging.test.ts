@@ -237,7 +237,7 @@ describe('CLI package tarball', () => {
 
         expect(manifest).toMatchObject({
             name: 'folder-structure-pro',
-            version: '0.1.0',
+            version: '0.1.1',
             description: 'CLI to generate, copy, export, and recreate project folder structures.',
             author: 'Shrey Purohit',
             keywords: [
@@ -289,7 +289,6 @@ describe('CLI package tarball', () => {
                 'engines',
                 'bin',
                 'files',
-                'dependencies',
             ].sort(),
         );
 
@@ -298,7 +297,7 @@ describe('CLI package tarball', () => {
         expect(manifest.scripts).toBeUndefined();
         expect(JSON.stringify(manifest)).not.toContain('workspace:');
         expect(JSON.stringify(manifest)).not.toContain('@folder-structure-pro/core');
-        expect(manifest.dependencies).toEqual({ clipboardy: '5.3.2' });
+        expect(manifest.dependencies).toBeUndefined();
 
         const executablePath = path.join(packageRoot, manifest.bin!['folder-structure-pro']);
 
@@ -307,7 +306,7 @@ describe('CLI package tarball', () => {
         const executable = await fs.readFile(executablePath, 'utf8');
 
         expect(executable.startsWith('#!/usr/bin/env node')).toBe(true);
-        expect(executable).toContain('from "clipboardy"');
+        expect(executable).not.toContain('clipboardy');
         expect(executable).not.toContain('from "@clack/prompts"');
         expect(executable).not.toContain('from "@clack/core"');
         expect(executable).not.toContain('from "@folder-structure-pro/core"');
@@ -381,12 +380,11 @@ describe('CLI package tarball', () => {
 
         expect(installedManifest).toMatchObject({
             name: 'folder-structure-pro',
-            version: '0.1.0',
-            dependencies: { clipboardy: '5.3.2' },
+            version: '0.1.1',
             bin: { 'folder-structure-pro': 'dist/index.js' },
         });
 
-        expect(installedManifest.dependencies).toEqual({ clipboardy: '5.3.2' });
+        expect(installedManifest.dependencies).toBeUndefined();
 
         const installedExecutablePath = path.resolve(
             consumerPackageDirectory,
@@ -397,7 +395,10 @@ describe('CLI package tarball', () => {
 
         expect(isWithinDirectory(consumerRealPath, installedExecutableRealPath)).toBe(true);
 
-        await fs.access(path.join(consumerNodeModules, 'clipboardy', 'package.json'));
+        const installedPackages = (await fs.readdir(consumerNodeModules)).filter(
+            (entry) => !entry.startsWith('.'),
+        );
+        expect(installedPackages).toEqual(['folder-structure-pro']);
 
         await expect(
             fs.access(path.join(consumerNodeModules, '@folder-structure-pro', 'core')),

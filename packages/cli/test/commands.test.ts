@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ClipboardUnavailableError } from '../src/adapters/clipboard.js';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 import { runExecutable } from '../src/cli.js';
 import { formatSuccessFooter } from '../src/success-footer.js';
@@ -87,6 +88,30 @@ describe('direct CLI commands', () => {
         expect(failed.stderr).toContain('Clipboard unavailable');
         expect(failed.stdout).toBe('');
         expectNoFooter(failed.stderr);
+    });
+
+    it('starts multi-line clipboard messages on a fresh line', async () => {
+        const cwd = await createTemporaryDirectory();
+        await fs.writeFile(path.join(cwd, 'a.ts'), '');
+
+        const sent = await runCommand(['copy'], cwd, {
+            write: vi.fn().mockResolvedValue('terminal'),
+        });
+        expect(sent.exitCode).toBe(0);
+        expect(sent.stderr.startsWith("\nSent 1 entry to your terminal's clipboard.\n")).toBe(true);
+
+        const failed = await runCommand(['copy'], cwd, {
+            write: vi
+                .fn()
+                .mockRejectedValue(new ClipboardUnavailableError(['No tool.', 'No terminal.'])),
+        });
+        expect(failed.exitCode).toBe(1);
+        expect(failed.stderr.startsWith("\nCouldn't copy to the clipboard.\n- No tool.\n")).toBe(
+            true,
+        );
+
+        const plain = await runCommand(['copy'], cwd);
+        expect(plain.stderr.startsWith('Copied 1 entry')).toBe(true);
     });
 
     it('keeps export stdout limited to structure data when --output - is used', async () => {

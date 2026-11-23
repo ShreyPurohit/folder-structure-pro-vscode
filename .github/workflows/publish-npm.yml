@@ -1,0 +1,68 @@
+# Publish the folder-structure-pro CLI to npm with provenance (manual only).
+#
+# Requires npm Trusted Publishing to be configured:
+#   Organization or user: ShreyPurohit
+#   Repository:           folder-structure-pro-vscode
+#   Workflow filename:    publish-npm.yml
+
+name: Publish npm
+
+on:
+    workflow_dispatch:
+        inputs:
+            dry_run:
+                description: 'Dry run (build and verify, do not publish)'
+                type: boolean
+                default: true
+
+permissions:
+    contents: read
+    id-token: write
+
+concurrency:
+    group: publish-npm-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        name: Publish CLI to npm
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 12.21.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  registry-url: 'https://registry.npmjs.org'
+                  package-manager-cache: false
+
+            - name: Use npm 11
+              run: npm install -g npm@11
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Check types
+              run: pnpm --filter folder-structure-pro check-types
+
+            - name: Build and test CLI package
+              run: pnpm --filter folder-structure-pro test
+
+            - name: Publish to npm
+              working-directory: packages/cli/.release
+              shell: bash
+              run: |
+                  if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+                    npm publish --provenance --access public --dry-run
+                  else
+                    npm publish --provenance --access public
+                  fi

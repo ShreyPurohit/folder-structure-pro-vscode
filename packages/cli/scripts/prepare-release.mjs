@@ -22,7 +22,6 @@ const manifestFields = [
     'engines',
     'bin',
     'files',
-    'dependencies',
 ];
 
 function quoteWindowsArgument(value) {
@@ -121,8 +120,7 @@ async function readWorkspaceManifest() {
         manifest.repository?.url !==
             'git+https://github.com/ShreyPurohit/folder-structure-pro-vscode.git' ||
         manifest.bin?.['folder-structure-pro'] !== 'dist/index.js' ||
-        manifest.dependencies?.clipboardy === undefined ||
-        Object.keys(manifest.dependencies).length !== 1
+        (manifest.dependencies !== undefined && Object.keys(manifest.dependencies).length > 0)
     ) {
         throw new Error(
             'The CLI workspace manifest has unexpected executable or runtime metadata.',

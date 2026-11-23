@@ -21,6 +21,8 @@ Use the interactive menu or run commands directly from your terminal.
 - **Create** – Recreate directories and empty files from an exported structure.
 - **Flexible filtering** – Exclude specific files and folders, include hidden entries, or respect `.gitignore`.
 - **Depth control** – Limit how many directory levels you want to include.
+- **Works over SSH** – Copy from a remote server straight to your own clipboard, with a clear message if your terminal can't.
+- **No runtime dependencies** – Nothing extra is installed alongside it.
 
 ![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/Folder-Structure-Pro-CLI.png)
 
@@ -34,8 +36,10 @@ Use the interactive menu or run commands directly from your terminal.
     - [Copy a Folder Structure](#copy-a-folder-structure)
     - [Export a Folder Structure](#export-a-folder-structure)
     - [Create a Folder Structure](#create-a-folder-structure)
+- [Clipboard and SSH](#clipboard-and-ssh)
 - [Command Options](#command-options)
 - [Filtering Behavior](#filtering-behavior)
+- [Troubleshooting](#troubleshooting)
 - [Exit Codes](#exit-codes)
 - [Limitations and Safety](#limitations-and-safety)
 - [Contributing](#contributing)
@@ -44,6 +48,7 @@ Use the interactive menu or run commands directly from your terminal.
 ## Requirements
 
 - Node.js `>=22.14.0`
+- Copying to the clipboard on a Linux desktop needs one of `xclip`, `xsel` or `wl-clipboard`. macOS and Windows need nothing extra, and neither does copying over SSH. See [Clipboard and SSH](#clipboard-and-ssh).
 
 ## Installation
 
@@ -123,9 +128,16 @@ Run the CLI without any arguments:
 folder-structure-pro
 ```
 
-Choose an action from the menu, select the directory to scan, adjust filtering options, and decide where the generated structure should go.
+The CLI walks you through these steps:
 
-The CLI guides you through the process.
+1. Choose **Copy or export a folder structure** or **Create directories and empty files**.
+2. Pick the directory to scan. Press `Tab` to autocomplete folder names.
+3. Choose the output format and filters, and optionally a maximum depth.
+4. Review the preview, then choose where the structure goes: your clipboard or a file.
+
+If the structure can't be copied to the clipboard, the CLI shows why and offers to print it in the terminal (so you can select and copy it by hand) or save it to a file.
+
+Press `Esc` or `Ctrl+C` at any prompt to cancel without making changes.
 
 > Interactive mode requires a terminal that supports prompts. In non-interactive environments, use an explicit command instead.
 
@@ -154,6 +166,8 @@ folder-structure-pro copy . --depth 3 --exclude dist --exclude coverage
 ```
 
 The directory defaults to your current working directory.
+
+If the copy can't be done on your machine, see [Clipboard and SSH](#clipboard-and-ssh).
 
 ### Export a Folder Structure
 
@@ -214,6 +228,36 @@ Use `--on-conflict` to decide what happens when an entry already exists:
 
 The `--yes` option is required for direct creation. Replacing files requires both `--yes` and `--on-conflict replace`.
 
+## Clipboard and SSH
+
+### What the CLI uses
+
+| Where you run it        | What it uses                  | Install anything?   |
+| ----------------------- | ----------------------------- | ------------------- |
+| macOS                   | `pbcopy`                      | No                  |
+| Windows                 | PowerShell, or `clip.exe`     | No                  |
+| WSL                     | The Windows tools above       | No                  |
+| Linux desktop (X11)     | `xclip`, or `xsel`            | Yes, one of them    |
+| Linux desktop (Wayland) | `wl-copy`                     | Yes, `wl-clipboard` |
+| Termux (Android)        | `termux-clipboard-set`        | Termux:API          |
+| SSH session or server   | Your own terminal (see below) | No                  |
+
+On Debian and Ubuntu, `sudo apt install xclip` is enough for a Linux desktop.
+
+### Copying over SSH
+
+A server has no access to the clipboard on your own computer. So over SSH, the CLI asks your terminal to set the clipboard for it. This uses a standard terminal feature called OSC 52, and you don't need to install anything on the server.
+
+Your terminal decides whether to allow it:
+
+- **Usually supported:** Windows Terminal, iTerm2 (turn on "Applications in terminal may access clipboard"), kitty, WezTerm, Alacritty and foot.
+- **Known not to support it:** GNOME Terminal, the macOS Terminal app, and PuTTY by default.
+- **Inside tmux:** add `set -g allow-passthrough on` to your `~/.tmux.conf`.
+
+A terminal never reports whether it accepted the copy. So the CLI prints "Sent" instead of "Copied", and you should paste once to check. If the paste is empty, use [`export`](#export-a-folder-structure) to save the structure to a file instead.
+
+Structures larger than about 75 KB are not sent through the terminal, because many terminals drop long messages. Use `export` for those.
+
 ## Command Options
 
 ### Copy and Export
@@ -257,6 +301,21 @@ Folder Structure Pro applies the following rules while scanning a directory:
 
 Use `--hidden` to include hidden entries or `--no-gitignore` to disable root `.gitignore` filtering.
 
+## Troubleshooting
+
+| What you see                                                       | What it means                                                             | What to do                                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `Sent … to your terminal's clipboard.` followed by an empty paste  | Your terminal ignored the copy request.                                   | Use a terminal that supports OSC 52, or run `folder-structure-pro export . --output tree.txt`. |
+| `No clipboard tool found. Install xclip, xsel or wl-clipboard`     | You're on a Linux desktop without a clipboard tool.                       | Run `sudo apt install xclip` (or your distribution's equivalent).                              |
+| `No desktop session found` or `This server has no desktop session` | There is no graphical session, such as a plain SSH server or a container. | Run it from a terminal that supports OSC 52, or use `export`.                                  |
+| `No terminal is available to send the copy to.`                    | The CLI is running without a terminal, for example in a script or a pipe. | Use `export . --output -` to print the structure, or `export --output <file>` to save it.      |
+
+To get the structure out of a server without using the clipboard, print it and select it with your mouse:
+
+```bash
+folder-structure-pro export . --output -
+```
+
 ## Exit Codes
 
 | Code | Meaning                                                                        |
@@ -268,6 +327,7 @@ Use `--hidden` to include hidden entries or `--no-gitignore` to disable root `.g
 ## Limitations and Safety
 
 - Only the root `.gitignore` is used. Nested ignore-file rules are not supported.
+- Copying over SSH cannot be confirmed, because terminals don't report whether they accepted the copy.
 - Export does not create missing parent directories.
 - The destination directory for `create` must already exist.
 - Creation is not atomic. If an operation fails partway through, previously completed changes may remain.

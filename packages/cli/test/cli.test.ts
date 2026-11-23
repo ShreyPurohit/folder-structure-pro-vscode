@@ -6,6 +6,7 @@ import { FolderFileSystemError } from '@folder-structure-pro/core';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 import { CANCELLED, type CliPrompts } from '../src/presentation.js';
 import { runCli, runExecutable } from '../src/cli.js';
+import { ClipboardUnavailableError } from '../src/adapters/clipboard.js';
 
 let temporaryDirectory: string | undefined;
 
@@ -36,12 +37,16 @@ function createPrompts(overrides: Partial<CliPrompts> = {}): CliPrompts {
         chooseDestination: vi.fn().mockResolvedValue('clipboard'),
         enterOutputPath: vi.fn().mockResolvedValue('structure.txt'),
         confirmOverwrite: vi.fn().mockResolvedValue(false),
+        chooseCopyFallback: vi.fn().mockResolvedValue('cancel'),
+        printContent: vi.fn(),
         chooseStructureFormat: vi.fn().mockResolvedValue('text'),
         enterStructurePath: vi.fn().mockResolvedValue('folder-structure.txt'),
         enterDestinationDirectory: vi.fn().mockResolvedValue(''),
         chooseFileConflictResolution: vi.fn().mockResolvedValue('skip'),
         confirmStructureCreation: vi.fn().mockResolvedValue(false),
         showPreview: vi.fn(),
+        withSpinner: (_message, _done, task) => task(),
+        warn: vi.fn(),
         error: vi.fn(),
         cancel: vi.fn(),
         outro: vi.fn(),
@@ -456,5 +461,90 @@ describe('CLI interaction', () => {
         expect(preview).toContain('preview truncated');
         expect(preview.length).toBeLessThan(1300);
         expect(summary).toContain('40 entries');
+    });
+
+    describe('when the clipboard is unavailable', () => {
+        async function run(choice: 'print' | 'file' | 'cancel' | typeof CANCELLED) {
+            const cwd = await createTemporaryDirectory();
+            await createSampleProject(cwd);
+            const prompts = createPrompts({
+                chooseCopyFallback: vi.fn().mockResolvedValue(choice),
+                enterOutputPath: vi.fn().mockResolvedValue('saved.txt'),
+            });
+            const clipboard = {
+                write: vi
+                    .fn()
+                    .mockRejectedValue(
+                        new ClipboardUnavailableError(['xsel missing', 'no terminal']),
+                    ),
+            };
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard,
+                prompts,
+                cwd,
+            });
+            return { cwd, prompts, exitCode };
+        }
+
+        it('prints the structure unadorned', async () => {
+            const { prompts, exitCode } = await run('print');
+            expect(exitCode).toBe(0);
+            expect(prompts.error).toHaveBeenCalledWith(expect.stringContaining('xsel missing'));
+            expect(prompts.printContent).toHaveBeenCalledWith(
+                expect.stringContaining('visible.ts'),
+            );
+            expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining('Printed'));
+        });
+
+        it('saves to a file and shows how to read it', async () => {
+            const { cwd, prompts, exitCode } = await run('file');
+            expect(exitCode).toBe(0);
+            await expect(fs.readFile(path.join(cwd, 'saved.txt'), 'utf8')).resolves.toContain(
+                'visible.ts',
+            );
+            expect(prompts.outro).toHaveBeenCalledWith(
+                expect.stringContaining('View it with: cat'),
+            );
+        });
+
+        it.each(['cancel', CANCELLED] as const)(
+            'exits cleanly when cancelled (%s)',
+            async (choice) => {
+                const { cwd, prompts, exitCode } = await run(choice);
+                expect(exitCode).toBe(0);
+                expect(prompts.printContent).not.toHaveBeenCalled();
+                expect(prompts.cancel).toHaveBeenCalled();
+                await expect(fs.access(path.join(cwd, 'saved.txt'))).rejects.toThrow();
+            },
+        );
+
+        it('shows an unconfirmed copy as a warning, then only the footer in the outro', async () => {
+            const cwd = await createTemporaryDirectory();
+            const prompts = createPrompts();
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard: { write: vi.fn().mockResolvedValue('terminal') },
+                prompts,
+                cwd,
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.warn).toHaveBeenCalledWith(expect.stringContaining('Sent'));
+            expect(prompts.outro).toHaveBeenCalledWith(expect.stringMatching(/^💙/));
+        });
+
+        it('does not offer the menu for unrelated clipboard errors', async () => {
+            const cwd = await createTemporaryDirectory();
+            const prompts = createPrompts();
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard: { write: vi.fn().mockRejectedValue(new Error('boom')) },
+                prompts,
+                cwd,
+            });
+            expect(exitCode).toBe(1);
+            expect(prompts.chooseCopyFallback).not.toHaveBeenCalled();
+            expect(prompts.error).toHaveBeenCalledWith('boom');
+        });
     });
 });

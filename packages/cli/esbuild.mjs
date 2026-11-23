@@ -7,7 +7,7 @@ await build({
     platform: 'node',
     target: 'node22',
     outfile: 'dist/index.js',
-    external: ['node:*', 'clipboardy'],
+    external: ['node:*'],
     packages: 'bundle',
     banner: {
         js: '#!/usr/bin/env node',
