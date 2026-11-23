@@ -1,7 +1,7 @@
 
 {
   "name": "folder-structure-pro",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "CLI to generate, copy, export, and recreate project folder structures.",
   "author": "Shrey Purohit",
@@ -54,9 +54,6 @@
     "validate-package": "pnpm run prepare-release && vitest run --config vitest.config.ts test/packaging.test.ts",
     "test": "pnpm run prepare-release && pnpm run test:built",
     "test:built": "vitest run --config vitest.config.ts"
-  },
-  "dependencies": {
-    "clipboardy": "5.3.2"
   },
   "devDependencies": {
     "@clack/prompts": "1.9.0",

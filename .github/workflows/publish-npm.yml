@@ -1,0 +1,68 @@
+# Publish the folder-structure-pro CLI to npm with provenance (manual only).
+#
+# Uses npm Trusted Publishing (OIDC), so no npm token is stored in GitHub.
+# One-time setup on npmjs.com: package "folder-structure-pro" -> Settings ->
+# Trusted Publisher -> GitHub Actions:
+#   Organization or user: ShreyPurohit
+#   Repository:           folder-structure-pro-vscode
+#   Workflow filename:    publish-npm.yml
+#   Allowed actions:      tick "npm publish" (this workflow publishes directly)
+# The first successful publish must happen within 2 days of saving that setup.
+# Requires a public repository, npm CLI >= 11.5.1 and a GitHub-hosted runner.
+
+name: Publish npm
+
+on:
+    workflow_dispatch:
+        inputs:
+            dry_run:
+                description: 'Dry run (build and verify, do not publish)'
+                type: boolean
+                default: true
+
+permissions:
+    contents: read
+    id-token: write # required for provenance and trusted publishing
+
+concurrency:
+    group: publish-npm-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        name: Publish CLI to npm
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 12.21.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  registry-url: 'https://registry.npmjs.org'
+                  package-manager-cache: false
+
+            - name: Use npm 11 (trusted publishing needs >= 11.5.1)
+              run: npm install -g npm@11
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build and test CLI package
+              run: pnpm --filter folder-structure-pro test
+
+            - name: Publish to npm
+              working-directory: packages/cli/.release
+              shell: bash
+              run: |
+                  if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+                    npm publish --provenance --access public --dry-run
+                  else
+                    npm publish --provenance --access public
+                  fi

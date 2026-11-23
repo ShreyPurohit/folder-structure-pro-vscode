@@ -249,7 +249,8 @@ Options:
   --no-gitignore        Do not respect the root .gitignore
   -h, --help            Show this help
 
-The generated structure is copied to the clipboard. Clipboard failures are
+The generated structure is copied to the clipboard (over SSH or without a
+desktop session, the terminal's OSC 52 clipboard support is used). Clipboard failures are
 reported on stderr; output is never redirected to another destination.
 `,
     export: `Usage: folder-structure-pro export [directory] --output <file|->

@@ -30,7 +30,7 @@ describe('CLI bundle', () => {
         expect(bundle).toContain('from "node:fs/promises"');
         expect(bundle).toContain('from "node:path"');
         expect(bundle).not.toContain('@folder-structure-pro/core');
-        expect(bundle).toContain('from "clipboardy"');
+        expect(bundle).not.toContain('from "clipboardy"');
         expect(bundle).not.toContain('from "@clack/prompts"');
         expect(JSON.stringify(manifest.dependencies ?? {})).not.toContain('workspace:');
         expect(manifest.private).toBe(true);
@@ -136,12 +136,16 @@ describe('CLI bundle', () => {
                 chooseDestination: async () => 'clipboard' as const,
                 enterOutputPath: async () => 'output.txt',
                 confirmOverwrite: async () => false,
+                chooseCopyFallback: async () => 'cancel' as const,
+                printContent: () => undefined,
                 chooseStructureFormat: async () => 'text' as const,
                 enterStructurePath: async () => 'structure.txt',
                 enterDestinationDirectory: async () => '',
                 chooseFileConflictResolution: async () => 'skip' as const,
                 confirmStructureCreation: async () => false,
                 showPreview: () => {},
+                withSpinner: <T>(_message: string, _done: string, task: () => Promise<T>) => task(),
+                warn: vi.fn(),
                 error: vi.fn(),
                 cancel: vi.fn(),
                 outro: vi.fn(),

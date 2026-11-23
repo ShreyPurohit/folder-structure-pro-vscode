@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import {
     cancel,
     confirm,
@@ -6,7 +7,9 @@ import {
     log,
     multiselect,
     outro,
+    path as selectPath,
     select,
+    spinner,
     text,
 } from '@clack/prompts';
 
@@ -15,6 +18,7 @@ export type Cancelled = typeof CANCELLED;
 export type PromptResult<T> = T | Cancelled;
 export type CliOperation = 'copy' | 'create';
 export type StructureInputFormat = 'text' | 'json';
+export type CopyFallbackChoice = 'print' | 'file' | 'cancel';
 export type FileConflictChoice = 'replace' | 'skip' | 'cancel';
 
 export interface CliFilters {
@@ -33,6 +37,9 @@ export interface CliPrompts {
     chooseDestination(): Promise<PromptResult<'clipboard' | 'file'>>;
     enterOutputPath(initialValue: string): Promise<PromptResult<string>>;
     confirmOverwrite(filePath: string): Promise<PromptResult<boolean>>;
+    chooseCopyFallback(): Promise<PromptResult<CopyFallbackChoice>>;
+    /** Writes the content unadorned (no prompt gutter) so it can be selected and copied from the terminal. */
+    printContent(content: string): void;
     chooseStructureFormat(): Promise<PromptResult<StructureInputFormat>>;
     enterStructurePath(initialValue: string): Promise<PromptResult<string>>;
     enterDestinationDirectory(initialValue: string): Promise<PromptResult<string>>;
@@ -41,9 +48,20 @@ export interface CliPrompts {
     ): Promise<PromptResult<FileConflictChoice>>;
     confirmStructureCreation(summary: string): Promise<PromptResult<boolean>>;
     showPreview(preview: string, summary: string): void;
+    /** Shows a spinner while a slow task runs, then replaces it with the done message. */
+    withSpinner<T>(message: string, doneMessage: string, task: () => Promise<T>): Promise<T>;
+    warn(message: string): void;
     error(message: string): void;
     cancel(message: string): void;
     outro(message: string): void;
+}
+
+function isExistingFile(filePath: string): boolean {
+    try {
+        return statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
 }
 
 export function createCliPrompts(): CliPrompts {
@@ -60,10 +78,10 @@ export function createCliPrompts(): CliPrompts {
             return isCancel(result) ? CANCELLED : result;
         },
         async chooseTarget(initialValue) {
-            const result = await text({
+            const result = await selectPath({
                 message: 'Directory to scan',
-                placeholder: initialValue,
                 initialValue,
+                directory: true,
             });
             return isCancel(result) ? CANCELLED : result;
         },
@@ -150,6 +168,20 @@ export function createCliPrompts(): CliPrompts {
             });
             return isCancel(result) ? CANCELLED : result;
         },
+        async chooseCopyFallback() {
+            const result = await select({
+                message: 'What would you like to do instead?',
+                options: [
+                    { value: 'print', label: 'Print it here to select and copy' },
+                    { value: 'file', label: 'Save it to a file' },
+                    { value: 'cancel', label: 'Cancel' },
+                ],
+            });
+            return isCancel(result) ? CANCELLED : result;
+        },
+        printContent(content) {
+            log.message(content, { withGuide: false, spacing: 1 });
+        },
         async chooseStructureFormat() {
             const result = await select({
                 message: 'Structure file format',
@@ -169,20 +201,18 @@ export function createCliPrompts(): CliPrompts {
                     if (value === undefined || !value.trim()) {
                         return 'Enter a path to a structure file.';
                     }
+                    if (!isExistingFile(value.trim())) {
+                        return 'No file found at that path.';
+                    }
                 },
             });
             return isCancel(result) ? CANCELLED : result;
         },
         async enterDestinationDirectory(initialValue) {
-            const result = await text({
+            const result = await selectPath({
                 message: 'Existing destination directory',
-                placeholder: initialValue,
                 initialValue,
-                validate(value) {
-                    if (value === undefined || !value.trim()) {
-                        return 'Enter an existing destination directory.';
-                    }
-                },
+                directory: true,
             });
             return isCancel(result) ? CANCELLED : result;
         },
@@ -210,6 +240,21 @@ export function createCliPrompts(): CliPrompts {
         showPreview(preview, summary) {
             log.info(summary);
             log.message(preview);
+        },
+        async withSpinner(message, doneMessage, task) {
+            const progress = spinner();
+            progress.start(message);
+            try {
+                const result = await task();
+                progress.stop(doneMessage);
+                return result;
+            } catch (error) {
+                progress.error('Failed');
+                throw error;
+            }
+        },
+        warn(message) {
+            log.warn(message);
         },
         error(message) {
             log.error(message);

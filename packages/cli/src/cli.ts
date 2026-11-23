@@ -19,7 +19,12 @@ import {
     type ParsedCliArguments,
     type ScanCommandOptions,
 } from './arguments.js';
-import { systemClipboard, type ClipboardAdapter } from './adapters/clipboard.js';
+import {
+    ClipboardUnavailableError,
+    describeCopy,
+    systemClipboard,
+    type ClipboardAdapter,
+} from './adapters/clipboard.js';
 import { exportStructure } from './adapters/nodeOutput.js';
 import { NodeFileSystemAdapter } from './adapters/nodeFileSystem.js';
 import { CANCELLED, createCliPrompts, type CliPrompts, type PromptResult } from './presentation.js';
@@ -48,6 +53,18 @@ export interface RunExecutableOptions {
 
 function isCancelled<T>(value: PromptResult<T>): value is typeof CANCELLED {
     return value === CANCELLED;
+}
+
+/** Thrown when the user cancels a prompt (Esc or Ctrl+C); handled once at the top of the flow. */
+class PromptCancelled extends Error {}
+
+/** Unwraps a prompt result, turning a cancellation into a PromptCancelled error. */
+async function answer<T>(pending: Promise<PromptResult<T>>): Promise<T> {
+    const result = await pending;
+    if (isCancelled(result)) {
+        throw new PromptCancelled();
+    }
+    return result;
 }
 
 function parsePatterns(value: string): string[] {
@@ -201,6 +218,11 @@ async function readStructureFile(
     return parseJsonWithComments(content);
 }
 
+/** Sets a multi-line message apart with a blank line before and after; one-liners are unchanged. */
+function formatBlock(message: string): string {
+    return message.includes('\n') ? `\n${message}\n` : message;
+}
+
 function formatCommandError(error: unknown): string {
     if (error instanceof StructureCreationExecutionError) {
         return formatExecutionError(error);
@@ -229,10 +251,9 @@ async function runDirectCommand(
             const rootPath = await resolveScanRoot(fileSystem, cwd, command.options.directory);
             const generated = await generateStructure(fileSystem, rootPath, command.options);
             if (command.kind === 'copy') {
-                await clipboard.write(generated.content);
-                await stderr(
-                    `Copied ${countLabel(generated.entries, 'entry')} to the clipboard.${formatSuccessFooter()}\n`,
-                );
+                const method = await clipboard.write(generated.content);
+                const message = describeCopy(countLabel(generated.entries, 'entry'), method);
+                await stderr(`${formatBlock(message)}${formatSuccessFooter()}\n`);
                 return 0;
             }
 
@@ -284,7 +305,10 @@ async function runDirectCommand(
         await stderr(`${formatCreationResult(result)}${formatSuccessFooter()}\n`);
         return 0;
     } catch (error) {
-        await stderr(`${formatCommandError(error)}\n`);
+        const message = formatCommandError(error);
+        await stderr(
+            `${error instanceof ClipboardUnavailableError ? formatBlock(message) : message}\n`,
+        );
         return 1;
     }
 }
@@ -293,46 +317,22 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
     const { fileSystem, clipboard, prompts, cwd } = dependencies;
     try {
         prompts.intro('Folder Structure Pro');
-        const operation = await prompts.chooseOperation();
-        if (isCancelled(operation)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const operation = await answer(prompts.chooseOperation());
         if (operation === 'create') {
             return await runStructureCreation(dependencies);
         }
 
-        const requestedTarget = await prompts.chooseTarget(cwd);
-        if (isCancelled(requestedTarget)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const requestedTarget = await answer(prompts.chooseTarget(cwd));
 
         const rootPath = await resolveScanRoot(fileSystem, cwd, requestedTarget);
 
-        const format = await prompts.chooseFormat();
-        if (isCancelled(format)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const format = await answer(prompts.chooseFormat());
 
-        const filters = await prompts.chooseFilters();
-        if (isCancelled(filters)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const filters = await answer(prompts.chooseFilters());
 
-        const rawPatterns = await prompts.enterIgnorePatterns();
-        if (isCancelled(rawPatterns)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const rawPatterns = await answer(prompts.enterIgnorePatterns());
 
-        const rawDepth = await prompts.enterMaxDepth();
-        if (isCancelled(rawDepth)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const rawDepth = await answer(prompts.enterMaxDepth());
 
         const normalizedDepth = rawDepth.trim();
         if (normalizedDepth !== '' && !/^\d+$/.test(normalizedDepth)) {
@@ -343,37 +343,58 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
             throw new RangeError('Maximum depth must be a non-negative whole number.');
         }
 
-        const generated = await generateStructure(fileSystem, rootPath, {
-            format,
-            ignorePatterns: parsePatterns(rawPatterns),
-            respectGitignore: filters.respectGitignore,
-            includeHidden: filters.includeHidden,
-            maxDepth,
-        });
+        const generated = await prompts.withSpinner('Scanning folder…', 'Folder scanned', () =>
+            generateStructure(fileSystem, rootPath, {
+                format,
+                ignorePatterns: parsePatterns(rawPatterns),
+                respectGitignore: filters.respectGitignore,
+                includeHidden: filters.includeHidden,
+                maxDepth,
+            }),
+        );
         const summaryText = `${generated.entries} entries (${generated.directories} directories); ${generated.content.length} characters`;
         prompts.showPreview(createBoundedPreview(generated.content), summaryText);
 
-        const destination = await prompts.chooseDestination();
-        if (isCancelled(destination)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
+        const destination = await answer(prompts.chooseDestination());
+
+        const entriesLabel = `${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'}`;
 
         if (destination === 'clipboard') {
-            await clipboard.write(generated.content);
-            prompts.outro(
-                `Copied ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to the clipboard.${formatSuccessFooter()}`,
-            );
-            return 0;
+            try {
+                const method = await clipboard.write(generated.content);
+                const message = describeCopy(entriesLabel, method);
+                if (method === undefined) {
+                    prompts.outro(`${message}${formatSuccessFooter()}`);
+                } else {
+                    // An unconfirmed copy is a caveat: show it aligned under the prompt gutter.
+                    prompts.warn(message);
+                    prompts.outro(formatSuccessFooter().trimStart());
+                }
+                return 0;
+            } catch (error) {
+                if (!(error instanceof ClipboardUnavailableError)) {
+                    throw error;
+                }
+                prompts.error(error.summary);
+            }
+
+            const fallback = await prompts.chooseCopyFallback();
+            if (isCancelled(fallback) || fallback === 'cancel') {
+                prompts.cancel('Operation cancelled.');
+                return 0;
+            }
+            if (fallback === 'print') {
+                prompts.printContent(generated.content);
+                prompts.outro(`Printed ${entriesLabel}.${formatSuccessFooter()}`);
+                return 0;
+            }
         }
 
-        const requestedOutput = await prompts.enterOutputPath(
-            path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
+        const requestedOutput = await answer(
+            prompts.enterOutputPath(
+                path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
+            ),
         );
-        if (isCancelled(requestedOutput)) {
-            prompts.cancel('Operation cancelled.');
-            return 0;
-        }
 
         const result = await exportStructure(
             fileSystem,
@@ -395,46 +416,32 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
         }
 
         prompts.outro(
-            `Exported ${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'} to ${result}.${formatSuccessFooter()}`,
+            `Exported ${entriesLabel} to ${result}.${destination === 'clipboard' ? ` View it with: cat ${JSON.stringify(result)}` : ''}${formatSuccessFooter()}`,
         );
         return 0;
     } catch (error) {
-        const detail =
-            error instanceof StructureCreationExecutionError
-                ? formatExecutionError(error)
-                : error instanceof FolderFileSystemError
-                  ? `${error.message} (${error.code})`
-                  : error instanceof Error
-                    ? error.message
-                    : 'An unexpected error occurred.';
-        prompts.error(detail);
+        if (error instanceof PromptCancelled) {
+            prompts.cancel('Operation cancelled.');
+            return 0;
+        }
+        prompts.error(formatCommandError(error));
         return 1;
     }
 }
 
 async function runStructureCreation(dependencies: CliDependencies): Promise<number> {
     const { fileSystem, prompts, cwd } = dependencies;
-    const format = await prompts.chooseStructureFormat();
-    if (isCancelled(format)) {
-        prompts.cancel('Operation cancelled.');
-        return 0;
-    }
+    const format = await answer(prompts.chooseStructureFormat());
 
-    const structurePathResult = await prompts.enterStructurePath(
-        path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
+    const structurePathResult = await answer(
+        prompts.enterStructurePath(
+            path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
+        ),
     );
-    if (isCancelled(structurePathResult)) {
-        prompts.cancel('Operation cancelled.');
-        return 0;
-    }
 
     const structure = await readStructureFile(fileSystem, cwd, structurePathResult, format);
 
-    const destinationResult = await prompts.enterDestinationDirectory(cwd);
-    if (isCancelled(destinationResult)) {
-        prompts.cancel('Operation cancelled.');
-        return 0;
-    }
+    const destinationResult = await answer(prompts.enterDestinationDirectory(cwd));
     const destination = fileSystem.toFolderPath(path.resolve(cwd, destinationResult.trim() || cwd));
     const plan = await planStructureCreation(fileSystem, destination, structure);
     const summary = creationSummary(plan.entries, plan.conflicts.length);
