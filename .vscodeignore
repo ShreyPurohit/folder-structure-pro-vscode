@@ -4,7 +4,7 @@ out/**
 node_modules/**
 test/**
 coverage/**
-vitest.config.ts
+vitest.config.mts
 src/**
 .gitignore
 .yarnrc
