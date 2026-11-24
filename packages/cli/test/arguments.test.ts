@@ -142,6 +142,25 @@ describe('CLI arguments', () => {
         ).toMatchObject({ onConflict: 'fail' });
     });
 
+    it('detects the create format when --format is omitted, and accepts - for standard input', () => {
+        expect(parseCliArguments(['create', 'structure.txt', '--yes'])).toEqual({
+            kind: 'create',
+            structureFile: 'structure.txt',
+            format: undefined,
+            destination: '.',
+            onConflict: 'fail',
+        });
+        expect(parseCliArguments(['create', '-', '--to', 'out', '--yes'])).toMatchObject({
+            kind: 'create',
+            structureFile: '-',
+            format: undefined,
+            destination: 'out',
+        });
+        expect(() => parseCliArguments(['create', 'a.txt', '--format', 'xml', '--yes'])).toThrow(
+            'Option --format must be either text or json.',
+        );
+    });
+
     it('rejects invalid command-specific options, values, and extra positionals', () => {
         expect(() => parseCliArguments(['copy', '--output', 'file.txt'])).toThrow(
             'not valid for this command',

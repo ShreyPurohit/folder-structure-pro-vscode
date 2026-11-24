@@ -27,6 +27,7 @@ async function runCommand(
     argv: string[],
     cwd: string,
     clipboard = { write: vi.fn().mockResolvedValue(undefined) },
+    readStdin?: () => Promise<string>,
 ) {
     const stdout: string[] = [];
     const stderr: string[] = [];
@@ -44,6 +45,7 @@ async function runCommand(
             fileSystem: new NodeFileSystemAdapter(),
             clipboard,
             cwd,
+            readStdin,
         },
     });
     return { exitCode, stdout: stdout.join(''), stderr: stderr.join(''), clipboard };
@@ -277,6 +279,98 @@ describe('direct CLI commands', () => {
         expectNoFooter(invalidDestination.stderr);
         await expect(fs.stat(path.join(cwd, 'missing'))).rejects.toMatchObject({
             code: 'ENOENT',
+        });
+    });
+
+    describe('create from standard input, and without --format', () => {
+        const piped = (text: string) => () => Promise.resolve(text);
+        const withTarget = async () => {
+            const cwd = await createTemporaryDirectory();
+            const target = path.join(cwd, 'target');
+            await fs.mkdir(target);
+            return { cwd, target };
+        };
+
+        it('creates a structure piped in with "-", detecting plain text', async () => {
+            const { cwd, target } = await withTarget();
+            const result = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                piped('Directory structure:\n└── app/\n    ├── index.ts\n    └── README'),
+            );
+            expect(result.exitCode).toBe(0);
+            await expect(fs.readFile(path.join(target, 'app', 'index.ts'), 'utf8')).resolves.toBe(
+                '',
+            );
+            await expect(fs.readFile(path.join(target, 'app', 'README'), 'utf8')).resolves.toBe('');
+            expectFooterOnce(result.stderr);
+        });
+
+        it('detects JSON, with comments, and keeps the root folder of text without a heading', async () => {
+            const { cwd, target } = await withTarget();
+            const json = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                piped('{\n  "api": { # service\n    "server": "ts"\n  }\n}'),
+            );
+            expect(json.exitCode).toBe(0);
+            await expect(fs.stat(path.join(target, 'api', 'server.ts'))).resolves.toBeTruthy();
+
+            const noHeading = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                piped('└── web/\n    └── main.ts\n'),
+            );
+            expect(noHeading.exitCode).toBe(0);
+            await expect(fs.stat(path.join(target, 'web', 'main.ts'))).resolves.toBeTruthy();
+        });
+
+        it('detects the format of a file when --format is left out', async () => {
+            const { cwd, target } = await withTarget();
+            const file = path.join(cwd, 'structure');
+            await fs.writeFile(file, '{"lib":{"index":"js"}}');
+            const result = await runCommand(['create', file, '--to', target, '--yes'], cwd);
+            expect(result.exitCode).toBe(0);
+            await expect(fs.stat(path.join(target, 'lib', 'index.js'))).resolves.toBeTruthy();
+        });
+
+        it('stops before creating anything when the piped structure is invalid', async () => {
+            const { cwd, target } = await withTarget();
+            const result = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                piped('Directory structure:\n        └── deep.ts'),
+            );
+            expect(result.exitCode).toBe(1);
+            expect(result.stderr).toContain('Invalid plain-text structure lines: 2.');
+            expect(result.stderr).toContain('- line 2: └── deep.ts');
+            expect(result.stderr).toContain('No files or directories were created.');
+            expect(await fs.readdir(target)).toEqual([]);
+        });
+
+        it('reports empty input and an input that cannot be read', async () => {
+            const { cwd, target } = await withTarget();
+            const empty = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                piped('   \n'),
+            );
+            expect(empty.exitCode).toBe(1);
+            expect(empty.stderr).toContain('Empty input or no valid lines.');
+
+            const broken = await runCommand(
+                ['create', '-', '--to', target, '--yes'],
+                cwd,
+                undefined,
+                () => Promise.reject(new Error('Nothing was piped in.')),
+            );
+            expect(broken.exitCode).toBe(1);
+            expect(broken.stderr).toContain('Nothing was piped in.');
         });
     });
 

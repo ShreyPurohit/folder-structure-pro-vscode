@@ -24,8 +24,10 @@ export type ParsedCliArguments =
       }
     | {
           kind: 'create';
+          /** A file path, or "-" to read the structure from standard input. */
           structureFile: string;
-          format: StructureInputFormat;
+          /** Undefined means "detect it": JSON when the text starts with "{". */
+          format?: StructureInputFormat;
           destination: string;
           onConflict: ConflictPolicy;
       };
@@ -200,8 +202,8 @@ export function parseCliArguments(args: readonly string[]): ParsedCliArguments {
     if (positionals.length !== 1) {
         throw new CliArgumentError('create requires exactly one structure-file argument.');
     }
-    if (values.format !== 'text' && values.format !== 'json') {
-        throw new CliArgumentError('create requires --format text or --format json.');
+    if (values.format !== undefined && values.format !== 'text' && values.format !== 'json') {
+        throw new CliArgumentError('Option --format must be either text or json.');
     }
     if (values.yes !== true) {
         throw new CliArgumentError('create requires --yes in non-interactive mode.');
@@ -232,7 +234,7 @@ Commands:
   copy [directory]                 Copy a generated structure to the clipboard
   export [directory] --output <file|->
                                    Export a structure to a file or stdout
-  create <structure-file>          Create directories and empty files
+  create <structure-file|->        Create directories and empty files
 
 Use "folder-structure-pro <command> --help" for command options.
 With no arguments, the interactive menu is available in a TTY.
@@ -268,17 +270,19 @@ Options:
 The output parent directory must already exist. Existing files are not
 overwritten unless --force is supplied.
 `,
-    create: `Usage: folder-structure-pro create <structure-file> --format <text|json> --yes [options]
+    create: `Usage: folder-structure-pro create <structure-file|-> --yes [options]
+Use - as the structure file to read it from standard input, for example:
+  pbpaste | folder-structure-pro create - --to ./new-project --yes
 
 Options:
-  --format <text|json>       Required structure input format
+  --format <text|json>       Structure format (default: detected from the content)
   --to <directory>           Existing destination (default: current directory)
   --on-conflict <policy>     fail (default), skip, or replace
   --yes                      Required to execute non-interactively
   -h, --help                 Show this help
 
 Replacing existing regular files requires --on-conflict replace and --yes.
-The operation is not atomic; partial changes may remain after a failure.
+Creation is all or nothing: if a step fails, everything it created is removed.
 `,
 };
 

@@ -18,10 +18,10 @@ Use the interactive menu or run commands directly from your terminal.
 - **Interactive mode** – Choose what you want to do through a simple terminal menu.
 - **Copy to clipboard** – Copy a folder structure with a single command.
 - **Export** – Save your structure as a plain text or JSON file.
-- **Create** – Recreate directories and empty files from an exported structure.
+- **Create** – Recreate directories and empty files from a structure on your clipboard, pasted in your editor, in a file, or piped in. A preview comes first, and you confirm before anything is created.
 - **Flexible filtering** – Exclude specific files and folders, include hidden entries, or respect `.gitignore`.
 - **Depth control** – Limit how many directory levels you want to include.
-- **Works over SSH** – Copy from a remote server straight to your own clipboard, with a clear message if your terminal can't.
+- **Works over SSH** – Copy from a remote server straight to your own clipboard, or print the structure when your terminal can't.
 - **No runtime dependencies** – Nothing extra is installed alongside it.
 
 ![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/Folder-Structure-Pro-CLI.png)
@@ -48,7 +48,7 @@ Use the interactive menu or run commands directly from your terminal.
 ## Requirements
 
 - Node.js `>=22.14.0`
-- Copying to the clipboard on a Linux desktop needs one of `xclip`, `xsel` or `wl-clipboard`. macOS and Windows need nothing extra, and neither does copying over SSH. See [Clipboard and SSH](#clipboard-and-ssh).
+- Copying needs nothing extra on macOS, Windows, WSL or most Linux desktops. See [Clipboard and SSH](#clipboard-and-ssh) for the details.
 
 ## Installation
 
@@ -113,8 +113,10 @@ folder-structure-pro export . --output folder-structure.txt
 To recreate a structure from an exported file:
 
 ```bash
-folder-structure-pro create structure.txt --format text --to ./new-project --yes
+folder-structure-pro create structure.txt --to ./new-project --yes
 ```
+
+Or run `folder-structure-pro` and choose **Create directories and empty files** to paste a structure from your clipboard or an editor.
 
 The destination directory for `create` must already exist.
 
@@ -135,7 +137,7 @@ The CLI walks you through these steps:
 3. Choose the output format and filters, and optionally a maximum depth.
 4. Review the preview, then choose where the structure goes: your clipboard or a file.
 
-If the structure can't be copied to the clipboard, the CLI shows why and offers to print it in the terminal (so you can select and copy it by hand) or save it to a file.
+If the structure can't be copied, the CLI says why and offers to print it (so you can select it by hand) or save it to a file. See [Clipboard and SSH](#clipboard-and-ssh).
 
 Press `Esc` or `Ctrl+C` at any prompt to cancel without making changes.
 
@@ -197,26 +199,41 @@ The output directory must already exist. Existing files are not overwritten unle
 
 ### Create a Folder Structure
 
-Create directories and empty files from a previously exported text or JSON structure.
+Create directories and empty files from a text tree or JSON structure, such as one you exported or copied earlier.
+
+**Interactive:** run `folder-structure-pro`, choose **Create directories and empty files**, and pick where the structure is:
+
+| Choice                           | What happens                                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| On my clipboard                  | Reads the structure you copied. Only offered when this session can read your clipboard, so not over SSH.                                                                           |
+| I will paste it in a text editor | Opens your editor (`$VISUAL`, then `$EDITOR`, then the system default, `nano` or `vi`; Notepad on Windows). Paste the structure, save, and close. Works everywhere, including SSH. |
+| In a file                        | Asks for the path of a saved structure. Press `Tab` to autocomplete file names.                                                                                                    |
+
+The CLI then checks the structure, shows a preview of what will be created, and asks you to confirm. If something can't be read, it shows the line numbers and text and asks **Fix it in the editor?** Saying yes reopens your text, from the clipboard, the editor or the file, with notes about what was wrong.
+
+**Direct:** pass a file, or `-` to read the structure from standard input:
 
 ```bash
-folder-structure-pro create <structure-file> --format <text|json> --yes [options]
+folder-structure-pro create <structure-file|-> --yes [options]
 ```
 
 Examples:
 
 ```bash
-# Create from a text structure
-folder-structure-pro create structure.txt --format text --to ./new-project --yes
+# Create from a file (text or JSON is detected automatically)
+folder-structure-pro create structure.txt --to ./new-project --yes
 
-# Create from a JSON structure
-folder-structure-pro create structure.json --format json --to ./new-project --yes
+# Create from your clipboard (on Windows, use the interactive menu instead)
+pbpaste | folder-structure-pro create - --to ./new-project --yes                       # macOS
+xclip -selection clipboard -o | folder-structure-pro create - --to ./new-project --yes  # Linux
 
-# Skip entries that already exist
+# Force the format, and skip entries that already exist
 folder-structure-pro create structure.json --format json --to . --yes --on-conflict skip
 ```
 
 The destination defaults to your current working directory and must already exist.
+
+Pasted text doesn't need the `Directory structure:` heading, and Windows line endings are fine.
 
 Use `--on-conflict` to decide what happens when an entry already exists:
 
@@ -230,33 +247,36 @@ The `--yes` option is required for direct creation. Replacing files requires bot
 
 ## Clipboard and SSH
 
-### What the CLI uses
+### Where copying works
 
-| Where you run it        | What it uses                  | Install anything?   |
-| ----------------------- | ----------------------------- | ------------------- |
-| macOS                   | `pbcopy`                      | No                  |
-| Windows                 | PowerShell, or `clip.exe`     | No                  |
-| WSL                     | The Windows tools above       | No                  |
-| Linux desktop (X11)     | `xclip`, or `xsel`            | Yes, one of them    |
-| Linux desktop (Wayland) | `wl-copy`                     | Yes, `wl-clipboard` |
-| Termux (Android)        | `termux-clipboard-set`        | Termux:API          |
-| SSH session or server   | Your own terminal (see below) | No                  |
+| Where you run it                                                                                                                        | What happens                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| macOS, Windows, WSL                                                                                                                     | Works. Nothing to install.                                                                                                                 |
+| Linux desktop                                                                                                                           | Works with `xclip`, `xsel` or `wl-copy`. Without them, it uses Python 3 with GTK, which Ubuntu Desktop includes.                           |
+| SSH, from a terminal that supports it (for example the Kiro or VS Code terminal, Windows Terminal, iTerm2, kitty, WezTerm or Alacritty) | Usually works. The copy goes to **your own** clipboard through your terminal. Some terminals need a setting turned on.                     |
+| SSH, from GNOME Terminal (or another VTE-based terminal such as Tilix or Xfce Terminal)                                                 | Can't work. These terminals ignore copy requests. The CLI notices, says so, and offers **Print it here** and **Export to a file** instead. |
+| SSH with `ssh -X`, and `xclip` or `xsel` on the server                                                                                  | Works. The server's display leads back to your desktop.                                                                                    |
 
-On Debian and Ubuntu, `sudo apt install xclip` is enough for a Linux desktop.
+Over SSH, the CLI asks your terminal to set the clipboard (a standard feature called OSC 52), so you don't install anything on the server. A terminal never confirms that it accepted the copy, so the CLI says **Sent** instead of **Copied**. Paste once to check.
 
-### Copying over SSH
+On a Linux desktop, the GTK fallback runs a small background process that serves the clipboard until you copy something else, the same way `xclip` does.
 
-A server has no access to the clipboard on your own computer. So over SSH, the CLI asks your terminal to set the clipboard for it. This uses a standard terminal feature called OSC 52, and you don't need to install anything on the server.
+### If copying doesn't work
 
-Your terminal decides whether to allow it:
+Print the structure and select it with your mouse, or save it to a file:
 
-- **Usually supported:** Windows Terminal, iTerm2 (turn on "Applications in terminal may access clipboard"), kitty, WezTerm, Alacritty and foot.
-- **Known not to support it:** GNOME Terminal, the macOS Terminal app, and PuTTY by default.
-- **Inside tmux:** add `set -g allow-passthrough on` to your `~/.tmux.conf`.
+```bash
+folder-structure-pro export . --output -
+folder-structure-pro export . --output tree.txt
+```
 
-A terminal never reports whether it accepted the copy. So the CLI prints "Sent" instead of "Copied", and you should paste once to check. If the paste is empty, use [`export`](#export-a-folder-structure) to save the structure to a file instead.
+In interactive mode, the CLI offers both choices when a copy fails. Over SSH, **Print it here to select and copy** is always in the destination menu.
 
-Structures larger than about 75 KB are not sent through the terminal, because many terminals drop long messages. Use `export` for those.
+Good to know:
+
+- Installing `xclip` on a server doesn't help in a normal SSH session. It would set the server's clipboard, not yours. It only helps with `ssh -X`.
+- Inside tmux, add `set -g allow-passthrough on` to your `~/.tmux.conf`.
+- Structures larger than about 75 KB are not sent through the terminal, because many terminals drop long messages. Use `export` for those.
 
 ## Command Options
 
@@ -281,12 +301,12 @@ These options control which files and directories are included in the generated 
 
 ### Create Only
 
-| Option                                | Description                                                       |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `--format <text\|json>`               | Format of the input structure.                                    |
-| `--to <directory>`                    | Destination directory. Defaults to the current working directory. |
-| `--yes`                               | Confirm direct creation without an interactive confirmation.      |
-| `--on-conflict <fail\|skip\|replace>` | Decide how to handle existing entries. Defaults to `fail`.        |
+| Option                                | Description                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `--format <text\|json>`               | Format of the input structure. Detected from the content when omitted. |
+| `--to <directory>`                    | Destination directory. Defaults to the current working directory.      |
+| `--yes`                               | Confirm direct creation without an interactive confirmation.           |
+| `--on-conflict <fail\|skip\|replace>` | Decide how to handle existing entries. Defaults to `fail`.             |
 
 ## Filtering Behavior
 
@@ -303,18 +323,15 @@ Use `--hidden` to include hidden entries or `--no-gitignore` to disable root `.g
 
 ## Troubleshooting
 
-| What you see                                                       | What it means                                                             | What to do                                                                                     |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `Sent … to your terminal's clipboard.` followed by an empty paste  | Your terminal ignored the copy request.                                   | Use a terminal that supports OSC 52, or run `folder-structure-pro export . --output tree.txt`. |
-| `No clipboard tool found. Install xclip, xsel or wl-clipboard`     | You're on a Linux desktop without a clipboard tool.                       | Run `sudo apt install xclip` (or your distribution's equivalent).                              |
-| `No desktop session found` or `This server has no desktop session` | There is no graphical session, such as a plain SSH server or a container. | Run it from a terminal that supports OSC 52, or use `export`.                                  |
-| `No terminal is available to send the copy to.`                    | The CLI is running without a terminal, for example in a script or a pipe. | Use `export . --output -` to print the structure, or `export --output <file>` to save it.      |
-
-To get the structure out of a server without using the clipboard, print it and select it with your mouse:
-
-```bash
-folder-structure-pro export . --output -
-```
+| What you see                                                      | What to do                                                                                                                                        |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Sent … to your terminal's clipboard.`, but pasting gives nothing | Your terminal ignored the request. Print the structure with `export . --output -`, or use a terminal from [the list above](#where-copying-works). |
+| `GNOME Terminal and similar terminals can't receive a copy…`      | Use another terminal, or print or save the structure with `export`.                                                                               |
+| `No clipboard tool found. Install xclip, xsel or wl-clipboard`    | On a Linux desktop, run `sudo apt install xclip` (or your distribution's equivalent).                                                             |
+| `This server has no desktop session`                              | Normal over SSH. Use a terminal that supports copying, `ssh -X` with `xclip`, or `export`.                                                        |
+| `No text editor found.`                                           | Set the `EDITOR` variable, for example `export EDITOR=nano`, or choose **In a file**.                                                             |
+| `Nothing was entered.` after the editor closes                    | Your editor may open in a separate window and return at once. Use one that waits, for example `EDITOR="code --wait"`.                             |
+| `No terminal is available to send the copy to.`                   | The CLI is running in a script or a pipe. Use `export --output <file>` or `--output -`.                                                           |
 
 ## Exit Codes
 
@@ -327,11 +344,12 @@ folder-structure-pro export . --output -
 ## Limitations and Safety
 
 - Only the root `.gitignore` is used. Nested ignore-file rules are not supported.
-- Copying over SSH cannot be confirmed, because terminals don't report whether they accepted the copy.
+- A copy over SSH can't be confirmed, because terminals don't report whether they accepted it.
 - Export does not create missing parent directories.
 - The destination directory for `create` must already exist.
-- Creation is not atomic. If an operation fails partway through, previously completed changes may remain.
-- The CLI does not roll back changes or recursively delete user data.
+- If a structure starts with a plain root line that has no connector, such as `proj/` in the output of the `tree` command, that line is skipped and its contents are created directly in the destination. A tree that starts with `└── proj/` creates the `proj` folder. The preview shows exactly what will be created.
+- Creation is all or nothing. If a step fails, or you press Ctrl+C while files are being created, everything that run created is removed and replaced files are restored. A power cut or a forced kill (for example `kill -9`) can't be undone.
+- Undoing only removes what the run itself created, and only empty directories. It never deletes recursively, so files someone else adds meanwhile are kept, and the CLI names any path it couldn't undo.
 - Existing directories, symlinks, and entries with unknown metadata are never replaced during creation.
 - Filesystem checks cannot eliminate every possible race involving concurrent path changes.
 

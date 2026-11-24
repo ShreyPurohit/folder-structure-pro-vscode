@@ -6,6 +6,7 @@ import {
     isCancel,
     log,
     multiselect,
+    note,
     outro,
     path as selectPath,
     select,
@@ -17,7 +18,7 @@ export const CANCELLED = { kind: 'cancelled' } as const;
 export type Cancelled = typeof CANCELLED;
 export type PromptResult<T> = T | Cancelled;
 export type CliOperation = 'copy' | 'create';
-export type StructureInputFormat = 'text' | 'json';
+export type StructureSource = 'clipboard' | 'editor' | 'file';
 export type CopyFallbackChoice = 'print' | 'file' | 'cancel';
 export type FileConflictChoice = 'replace' | 'skip' | 'cancel';
 
@@ -34,13 +35,23 @@ export interface CliPrompts {
     chooseFilters(): Promise<PromptResult<CliFilters>>;
     enterIgnorePatterns(): Promise<PromptResult<string>>;
     enterMaxDepth(): Promise<PromptResult<string>>;
-    chooseDestination(): Promise<PromptResult<'clipboard' | 'file'>>;
+    /**
+     * `offerPrint` adds "print here" for sessions where the clipboard is unlikely to work (SSH).
+     * `offerClipboard: false` removes "copy" when copying is known to be impossible.
+     */
+    chooseDestination(options?: {
+        offerPrint?: boolean;
+        offerClipboard?: boolean;
+    }): Promise<PromptResult<'clipboard' | 'print' | 'file'>>;
     enterOutputPath(initialValue: string): Promise<PromptResult<string>>;
     confirmOverwrite(filePath: string): Promise<PromptResult<boolean>>;
     chooseCopyFallback(): Promise<PromptResult<CopyFallbackChoice>>;
     /** Writes the content unadorned (no prompt gutter) so it can be selected and copied from the terminal. */
     printContent(content: string): void;
-    chooseStructureFormat(): Promise<PromptResult<StructureInputFormat>>;
+    /** `clipboard` is offered only when this session can read the user's clipboard. */
+    chooseStructureSource(options: { clipboard: boolean }): Promise<PromptResult<StructureSource>>;
+    /** After a structure turned out to be invalid; `edit` reopens it in the editor. */
+    chooseInvalidStructureAction(): Promise<PromptResult<'edit' | 'cancel'>>;
     enterStructurePath(initialValue: string): Promise<PromptResult<string>>;
     enterDestinationDirectory(initialValue: string): Promise<PromptResult<string>>;
     chooseFileConflictResolution(
@@ -138,12 +149,23 @@ export function createCliPrompts(): CliPrompts {
             });
             return isCancel(result) ? CANCELLED : result;
         },
-        async chooseDestination() {
+        async chooseDestination({ offerPrint = false, offerClipboard = true } = {}) {
             const result = await select({
                 message: 'Where should the structure go?',
                 options: [
-                    { value: 'clipboard', label: 'Copy to clipboard' },
-                    { value: 'file', label: 'Export to a file' },
+                    ...(offerClipboard
+                        ? [{ value: 'clipboard' as const, label: 'Copy to clipboard' }]
+                        : []),
+                    ...(offerPrint
+                        ? [
+                              {
+                                  value: 'print' as const,
+                                  label: 'Print it here to select and copy',
+                                  hint: 'works in every terminal',
+                              },
+                          ]
+                        : []),
+                    { value: 'file' as const, label: 'Export to a file' },
                 ],
             });
             return isCancel(result) ? CANCELLED : result;
@@ -182,27 +204,51 @@ export function createCliPrompts(): CliPrompts {
         printContent(content) {
             log.message(content, { withGuide: false, spacing: 1 });
         },
-        async chooseStructureFormat() {
+        async chooseStructureSource({ clipboard }) {
             const result = await select({
-                message: 'Structure file format',
+                message: 'Where is the structure?',
                 options: [
-                    { value: 'text', label: 'Plain text tree' },
-                    { value: 'json', label: 'JSON' },
+                    ...(clipboard
+                        ? [
+                              {
+                                  value: 'clipboard' as const,
+                                  label: 'On my clipboard',
+                                  hint: 'the structure you copied',
+                              },
+                          ]
+                        : []),
+                    {
+                        value: 'editor' as const,
+                        label: 'I will paste it in a text editor',
+                        hint: 'works everywhere, including over SSH',
+                    },
+                    {
+                        value: 'file' as const,
+                        label: 'In a file',
+                        hint: 'a saved tree or JSON file',
+                    },
                 ],
             });
             return isCancel(result) ? CANCELLED : result;
         },
+        async chooseInvalidStructureAction() {
+            const result = await confirm({
+                message: 'Fix it in the editor?',
+                initialValue: true,
+            });
+            return isCancel(result) ? CANCELLED : result ? 'edit' : 'cancel';
+        },
         async enterStructurePath(initialValue) {
-            const result = await text({
+            const result = await selectPath({
                 message: 'Path to the structure file',
-                placeholder: initialValue,
                 initialValue,
+                directory: false,
                 validate(value) {
                     if (value === undefined || !value.trim()) {
                         return 'Enter a path to a structure file.';
                     }
                     if (!isExistingFile(value.trim())) {
-                        return 'No file found at that path.';
+                        return 'Choose an existing file.';
                     }
                 },
             });
@@ -239,7 +285,7 @@ export function createCliPrompts(): CliPrompts {
         },
         showPreview(preview, summary) {
             log.info(summary);
-            log.message(preview);
+            note(preview, 'Preview');
         },
         async withSpinner(message, doneMessage, task) {
             const progress = spinner();

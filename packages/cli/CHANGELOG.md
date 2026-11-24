@@ -1,5 +1,28 @@
 # Change Log
 
+## [0.2.0] - 2026-11-24
+
+### Added
+
+- Creation is all or nothing. If a step fails or you press Ctrl+C while files are being created, everything that run created is removed and replaced files are restored. Before, a failure could leave part of the structure behind.
+- Create from more places. The interactive menu now asks where the structure is: your clipboard (local sessions), a text editor you paste into (works over SSH and with large structures), or a file.
+- `create -` reads the structure from standard input, for example `pbpaste | folder-structure-pro create - --to ./new-project --yes`.
+- `--format` is optional for `create`. Text or JSON is detected from the content.
+- Pasted text no longer needs the `Directory structure:` heading, and Windows line endings are accepted. When a structure can't be read, the CLI shows the line numbers and text, and **Fix it in the editor** reopens it with notes about what was wrong.
+- GNOME Terminal and other VTE-based terminals are recognised, also through SSH (the CLI asks the terminal which program it is). Because they ignore copy requests, the CLI says so, leaves "Copy to clipboard" out of the menu, and offers printing or saving instead.
+- Over SSH, the interactive menu offers "Print it here to select and copy", which works in every terminal.
+
+### Fixed
+
+- Copying on Linux desktops without `xclip`, `xsel` or `wl-copy` (a fresh Ubuntu, for example) works again in terminals that ignore the terminal clipboard, such as GNOME Terminal. It now falls back to Python 3 with GTK when available.
+- When you paste a structure in the editor on a server without a working UTF-8 locale, the tree's box characters are now shown correctly instead of as escape codes. The text was always saved correctly.
+- Ubuntu's first-time "Select an editor" menu no longer appears when the editor opens. The system default editor is used.
+- Over SSH to a macOS or Windows machine, the CLI no longer copies to that machine's own clipboard and reports "Copied".
+
+### Changed
+
+- When a copy can't be confirmed, the message now shows the command that prints the structure: `folder-structure-pro export . --output -`.
+
 ## [0.1.1] - 2026-11-23
 
 ### Added

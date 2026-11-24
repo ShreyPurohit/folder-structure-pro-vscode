@@ -5,6 +5,7 @@ import {
     planStructureCreation,
     StructureCreationExecutionError,
     StructureCreationValidationError,
+    type CreationRollback,
     type DirectoryEntry,
     type EntryMetadata,
     type ExclusiveFileCreation,
@@ -19,7 +20,9 @@ interface MemoryEntry {
     content?: string;
 }
 
-class MemoryFileSystem implements FolderStructureFileSystem, ExclusiveFileCreation {
+class MemoryFileSystem
+    implements FolderStructureFileSystem, ExclusiveFileCreation, CreationRollback
+{
     readonly entries = new Map<string, MemoryEntry>([
         [ROOT, { metadata: { kind: 'directory', symlink: 'not-a-symlink' } }],
     ]);
@@ -96,6 +99,54 @@ class MemoryFileSystem implements FolderStructureFileSystem, ExclusiveFileCreati
         });
     }
 
+    failUndoPath?: string;
+    private backups = 0;
+    private refuseUndo(path: FolderPath): void {
+        if (path === this.failUndoPath) {
+            throw new Error('Synthetic undo failure.');
+        }
+    }
+    async replaceWithEmptyFile(path: FolderPath): Promise<FolderPath> {
+        this.mutations.push(`replace:${path}`);
+        const original = this.entries.get(path);
+        if (!original || original.metadata.kind !== 'file') {
+            throw new FolderFileSystemError('INVALID_PATH', 'Not a file.');
+        }
+        const backup = `${path}.backup${++this.backups}` as FolderPath;
+        this.entries.set(backup, original);
+        this.entries.set(path, { metadata: original.metadata, content: '' });
+        return backup;
+    }
+    async restoreFile(backup: FolderPath, path: FolderPath): Promise<void> {
+        this.refuseUndo(path);
+        const original = this.entries.get(backup);
+        if (!original) {
+            throw new FolderFileSystemError('NOT_FOUND', 'Missing backup.');
+        }
+        this.entries.delete(backup);
+        this.entries.set(path, original);
+    }
+    async removeFile(path: FolderPath): Promise<void> {
+        this.refuseUndo(path);
+        if (this.entries.get(path)?.metadata.kind !== 'file') {
+            throw new FolderFileSystemError('INVALID_PATH', 'Not a file.');
+        }
+        this.entries.delete(path);
+    }
+    async removeEmptyDirectory(path: FolderPath): Promise<void> {
+        this.refuseUndo(path);
+        const hasChildren = [...this.entries.keys()].some((key) => key.startsWith(`${path}/`));
+        if (hasChildren) {
+            throw new FolderFileSystemError('IO_ERROR', 'Directory not empty.');
+        }
+        this.entries.delete(path);
+    }
+    /** Every path and content, so a test can compare the whole destination with a snapshot. */
+    snapshot(): Array<[string, string | undefined]> {
+        return [...this.entries].map(([key, entry]) => [key, entry.content]).sort() as Array<
+            [string, string | undefined]
+        >;
+    }
     seed(path: string, metadata: EntryMetadata, content = ''): void {
         this.entries.set(path, { metadata, content });
     }
@@ -249,7 +300,7 @@ describe('structure creation execution', () => {
 
         expect(result.filesReplaced).toBe(1);
         await expect(fileSystem.readText(`${ROOT}/replace.txt` as FolderPath)).resolves.toBe('');
-        expect(fileSystem.mutations).toEqual([`write:${ROOT}/replace.txt`]);
+        expect(fileSystem.mutations).toEqual([`replace:${ROOT}/replace.txt`]);
     });
 
     it('cancels without performing any mutations', async () => {
@@ -270,19 +321,20 @@ describe('structure creation execution', () => {
         expect(fileSystem.entries.has(`${ROOT}/new.txt`)).toBe(false);
     });
 
-    it('reports completed replacements and creations when a later operation fails', async () => {
+    it('is all or nothing: a failure undoes every creation and restores replaced files', async () => {
         const fileSystem = new MemoryFileSystem();
         fileSystem.seed(
             `${ROOT}/replace.txt`,
             { kind: 'file', symlink: 'not-a-symlink' },
             'old content',
         );
-        fileSystem.failCreatePath = `${ROOT}/failed.txt`;
+        fileSystem.seed(`${ROOT}/keep`, { kind: 'directory', symlink: 'not-a-symlink' });
+        const before = fileSystem.snapshot();
+        fileSystem.failCreatePath = `${ROOT}/keep/inner/failed.txt`;
         const plan = await planStructureCreation(fileSystem, ROOT, {
-            app: {},
+            app: { nested: {} },
+            keep: { inner: { created: 'txt', failed: 'txt' } },
             replace: 'txt',
-            created: 'txt',
-            failed: 'txt',
         });
 
         const error = await executeStructureCreation(fileSystem, plan, 'replace').catch(
@@ -291,55 +343,111 @@ describe('structure creation execution', () => {
 
         expect(error).toBeInstanceOf(StructureCreationExecutionError);
         if (!(error instanceof StructureCreationExecutionError)) {
-            throw new Error('Expected an execution error with partial results.');
+            throw new Error('Expected an execution error.');
         }
-        expect(error.relativePath).toBe('failed.txt');
+        expect(error.relativePath).toBe('keep/inner/failed.txt');
         expect(error.cause).toBe(fileSystem.createFailure);
-        expect(error.completed).toMatchObject({
-            directoriesCreated: 1,
-            directoriesReused: 0,
-            filesCreated: 1,
-            filesReplaced: 1,
-            filesSkipped: 0,
-        });
-        expect(error.message).toContain(
-            'Completed before failure: 1 directory created, 0 directories reused, 1 file created, 1 file replaced, and 0 files skipped.',
+        expect(error.notUndone).toEqual([]);
+        expect(error.message).toBe(
+            'Creation stopped at "keep/inner/failed.txt". Nothing was changed: everything this run created was removed, and replaced files were restored.',
         );
-        expect(error.message).toContain(
-            'The failed operation may have partially affected "failed.txt"',
-        );
-        expect(error.message).toContain('no rollback was attempted');
-        await expect(fileSystem.readText(`${ROOT}/replace.txt` as FolderPath)).resolves.toBe('');
-        await expect(fileSystem.readText(`${ROOT}/created.txt` as FolderPath)).resolves.toBe('');
-        await expect(fileSystem.lstat(`${ROOT}/app` as FolderPath)).resolves.toEqual({
-            kind: 'directory',
-            symlink: 'not-a-symlink',
-        });
-        expect(fileSystem.entries.has(`${ROOT}/failed.txt`)).toBe(false);
+        // The destination is exactly as before, including the replaced file's content and
+        // the directory that existed already.
+        expect(fileSystem.snapshot()).toEqual(before);
     });
 
-    it('reports skipped files in the result after a later failure', async () => {
+    it('undoes everything when the run is aborted between steps', async () => {
         const fileSystem = new MemoryFileSystem();
-        fileSystem.seed(`${ROOT}/skip.txt`, { kind: 'file', symlink: 'not-a-symlink' }, 'preserve');
-        fileSystem.failCreatePath = `${ROOT}/failed.txt`;
+        const before = fileSystem.snapshot();
         const plan = await planStructureCreation(fileSystem, ROOT, {
-            skip: 'txt',
+            a: 'txt',
+            b: 'txt',
+            c: 'txt',
+        });
+        const controller = new AbortController();
+        const originalCreate = fileSystem.createFileExclusive.bind(fileSystem);
+        fileSystem.createFileExclusive = async (path, content) => {
+            await originalCreate(path, content);
+            controller.abort(); // Ctrl+C arrives after the first file
+        };
+
+        const error = await executeStructureCreation(fileSystem, plan, 'skip', {
+            signal: controller.signal,
+        }).catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(StructureCreationExecutionError);
+        expect(fileSystem.snapshot()).toEqual(before);
+    });
+
+    it('says exactly what could not be undone, and still undoes the rest', async () => {
+        const fileSystem = new MemoryFileSystem();
+        fileSystem.failCreatePath = `${ROOT}/failed.txt`;
+        fileSystem.failUndoPath = `${ROOT}/stuck.txt`;
+        const plan = await planStructureCreation(fileSystem, ROOT, {
+            app: {},
+            stuck: 'txt',
+            removed: 'txt',
             failed: 'txt',
         });
 
-        const error = await executeStructureCreation(fileSystem, plan, 'skip').catch(
+        const error = (await executeStructureCreation(fileSystem, plan, 'skip').catch(
             (caught: unknown) => caught,
-        );
+        )) as StructureCreationExecutionError;
 
-        expect(error).toBeInstanceOf(StructureCreationExecutionError);
-        if (!(error instanceof StructureCreationExecutionError)) {
-            throw new Error('Expected an execution error with partial results.');
-        }
-        expect(error.completed.filesSkipped).toBe(1);
-        expect(error.message).toContain('1 file skipped');
+        expect(error.notUndone).toEqual(['stuck.txt']);
+        expect(error.message).toContain(
+            'Some changes could not be undone. Check these paths: stuck.txt.',
+        );
+        expect(fileSystem.entries.has(`${ROOT}/removed.txt`)).toBe(false);
+        expect(fileSystem.entries.has(`${ROOT}/app`)).toBe(false);
+        expect(fileSystem.entries.has(`${ROOT}/stuck.txt`)).toBe(true);
+    });
+
+    it('never removes a directory that someone filled during the run', async () => {
+        const fileSystem = new MemoryFileSystem();
+        fileSystem.failCreatePath = `${ROOT}/app/failed.txt`;
+        const plan = await planStructureCreation(fileSystem, ROOT, { app: { failed: 'txt' } });
+        const originalMkdir = fileSystem.createDirectory.bind(fileSystem);
+        fileSystem.createDirectory = async (path) => {
+            await originalMkdir(path);
+            fileSystem.seed(
+                `${path}/someone-elses.txt`,
+                { kind: 'file', symlink: 'not-a-symlink' },
+                'keep',
+            );
+        };
+
+        const error = (await executeStructureCreation(fileSystem, plan, 'skip').catch(
+            (caught: unknown) => caught,
+        )) as StructureCreationExecutionError;
+
+        expect(error.notUndone).toEqual(['app']);
+        await expect(
+            fileSystem.readText(`${ROOT}/app/someone-elses.txt` as FolderPath),
+        ).resolves.toBe('keep');
+    });
+
+    it('keeps skipped files untouched when a later step fails', async () => {
+        const fileSystem = new MemoryFileSystem();
+        fileSystem.seed(`${ROOT}/skip.txt`, { kind: 'file', symlink: 'not-a-symlink' }, 'preserve');
+        fileSystem.failCreatePath = `${ROOT}/failed.txt`;
+        const plan = await planStructureCreation(fileSystem, ROOT, { skip: 'txt', failed: 'txt' });
+        await expect(executeStructureCreation(fileSystem, plan, 'skip')).rejects.toBeInstanceOf(
+            StructureCreationExecutionError,
+        );
         await expect(fileSystem.readText(`${ROOT}/skip.txt` as FolderPath)).resolves.toBe(
             'preserve',
         );
+    });
+
+    it('removes the copies of replaced files after a successful run', async () => {
+        const fileSystem = new MemoryFileSystem();
+        fileSystem.seed(`${ROOT}/replace.txt`, { kind: 'file', symlink: 'not-a-symlink' }, 'old');
+        const plan = await planStructureCreation(fileSystem, ROOT, { replace: 'txt' });
+        const result = await executeStructureCreation(fileSystem, plan, 'replace');
+        expect(result).toMatchObject({ filesReplaced: 1, leftoverBackups: [] });
+        await expect(fileSystem.readText(`${ROOT}/replace.txt` as FolderPath)).resolves.toBe('');
+        expect([...fileSystem.entries.keys()].some((key) => key.includes('backup'))).toBe(false);
     });
 
     it('revalidates the plan before any mutations', async () => {

@@ -1,8 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import type { Dirent, Stats } from 'node:fs';
 import * as path from 'node:path';
 import {
     FolderFileSystemError,
+    type CreationRollback,
     type DirectoryEntry,
     type EntryMetadata,
     type ExclusiveFileCreation,
@@ -21,7 +23,9 @@ const FILE_SYSTEM_ERROR_CODES: Record<string, FolderFileSystemErrorCode> = {
     ENAMETOOLONG: 'INVALID_PATH',
 };
 
-export class NodeFileSystemAdapter implements FolderStructureFileSystem, ExclusiveFileCreation {
+export class NodeFileSystemAdapter
+    implements FolderStructureFileSystem, ExclusiveFileCreation, CreationRollback
+{
     toFolderPath(value: string): FolderPath {
         try {
             if (typeof value !== 'string' || !value || value.includes('\0')) {
@@ -164,6 +168,49 @@ export class NodeFileSystemAdapter implements FolderStructureFileSystem, Exclusi
         }
 
         throw normalizedWriteFailure;
+    }
+
+    async replaceWithEmptyFile(folderPath: FolderPath): Promise<FolderPath> {
+        const target = this.decodePath(folderPath);
+        const stats = await this.withNormalizedError(() => fs.lstat(target));
+        if (!stats.isFile()) {
+            throw new FolderFileSystemError('INVALID_PATH', 'Only a regular file can be replaced.');
+        }
+        // A random hidden name next to the original: renaming within a directory is atomic
+        // and instant, whatever the file's size.
+        const backup = path.join(
+            path.dirname(target),
+            `.${path.basename(target)}.${randomBytes(6).toString('hex')}.folder-structure-pro`,
+        );
+        await this.withNormalizedError(() => fs.rename(target, backup));
+        try {
+            const handle = await fs.open(target, 'wx', stats.mode & 0o7777);
+            await handle.close();
+        } catch (error) {
+            await fs.rename(backup, target).catch(() => undefined);
+            throw this.normalizeError(error);
+        }
+        return backup as FolderPath;
+    }
+
+    async restoreFile(backup: FolderPath, folderPath: FolderPath): Promise<void> {
+        const target = this.decodePath(folderPath);
+        await this.withNormalizedError(() => fs.rm(target, { force: true }));
+        await this.withNormalizedError(() => fs.rename(this.decodePath(backup), target));
+    }
+
+    async removeFile(folderPath: FolderPath): Promise<void> {
+        const target = this.decodePath(folderPath);
+        const stats = await this.withNormalizedError(() => fs.lstat(target));
+        if (!stats.isFile()) {
+            throw new FolderFileSystemError('INVALID_PATH', 'Only a regular file can be removed.');
+        }
+        await this.withNormalizedError(() => fs.unlink(target));
+    }
+
+    async removeEmptyDirectory(folderPath: FolderPath): Promise<void> {
+        // rmdir fails on a directory that is not empty, so nothing inside can be lost.
+        await this.withNormalizedError(() => fs.rmdir(this.decodePath(folderPath)));
     }
 
     joinChild(parent: FolderPath, name: string): FolderPath {
