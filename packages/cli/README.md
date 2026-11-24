@@ -7,90 +7,61 @@
 [![CI](https://github.com/ShreyPurohit/folder-structure-pro-vscode/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ShreyPurohit/folder-structure-pro-vscode/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/ShreyPurohit/folder-structure-pro-vscode)](./LICENSE)
 
-Folder Structure Pro helps you view, share, and recreate directory structures without manually writing them out.
+Folder Structure Pro is a command-line folder structure generator and directory tree tool for developers. Scan a project to generate a readable file and directory tree, copy it to your clipboard, export it as text or JSON, or recreate directories and empty files from an existing structure.
 
-Whether you need to share your project structure with an AI assistant, document your files, or recreate a directory layout in another location, Folder Structure Pro makes it simple.
+It's useful for documenting projects, sharing directory structures with AI assistants, and reproducing project layouts without creating files and folders manually.
 
 Use the interactive menu or run commands directly from your terminal.
 
 ## Features
 
-- **Interactive mode** – Choose what you want to do through a simple terminal menu.
-- **Copy to clipboard** – Copy a folder structure with a single command.
-- **Export** – Save your structure as a plain text or JSON file.
-- **Create** – Recreate directories and empty files from an exported structure.
-- **Flexible filtering** – Exclude specific files and folders, include hidden entries, or respect `.gitignore`.
-- **Depth control** – Limit how many directory levels you want to include.
-- **Works over SSH** – Copy from a remote server straight to your own clipboard, with a clear message if your terminal can't.
-- **No runtime dependencies** – Nothing extra is installed alongside it.
+- **Interactive mode** – Choose an operation through a guided terminal menu.
+- **Copy** – Send a folder structure directly to your clipboard.
+- **Export** – Save a structure as a text or JSON file, or print it to standard output.
+- **Create** – Recreate directories and empty files from clipboard content, editor input, a file, or standard input.
+- **Flexible filtering** – Exclude patterns, include hidden entries, and respect `.gitignore`.
+- **Depth control** – Limit how many directory levels are included.
+- **SSH support** – Copy from a remote server to your local clipboard through supported terminals.
+- **Safe creation** – Preview changes, handle conflicts, and roll back changes if creation fails.
+- **No runtime dependencies** – No extra packages are required at runtime.
 
-![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/Folder-Structure-Pro-CLI.png)
-
-## Table of Contents
-
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-    - [Interactive Mode](#interactive-mode)
-    - [Copy a Folder Structure](#copy-a-folder-structure)
-    - [Export a Folder Structure](#export-a-folder-structure)
-    - [Create a Folder Structure](#create-a-folder-structure)
-- [Clipboard and SSH](#clipboard-and-ssh)
-- [Command Options](#command-options)
-- [Filtering Behavior](#filtering-behavior)
-- [Troubleshooting](#troubleshooting)
-- [Exit Codes](#exit-codes)
-- [Limitations and Safety](#limitations-and-safety)
-- [Contributing](#contributing)
-- [License](#license)
+![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/folder-structure-pro-cli.png)
 
 ## Requirements
 
 - Node.js `>=22.14.0`
-- Copying to the clipboard on a Linux desktop needs one of `xclip`, `xsel` or `wl-clipboard`. macOS and Windows need nothing extra, and neither does copying over SSH. See [Clipboard and SSH](#clipboard-and-ssh).
 
 ## Installation
 
-### Run without installing globally
+### Run without installing
 
-You can try Folder Structure Pro directly using a package runner. No global installation is required.
-
-**Using npm:**
+Try the CLI directly with a package runner:
 
 ```bash
 npx folder-structure-pro
 ```
 
-**Using pnpm (recommended):**
+Or with pnpm:
 
 ```bash
 pnpm dlx folder-structure-pro
 ```
 
-You can also use `pnpx`, the older pnpm equivalent:
-
-```bash
-pnpx folder-structure-pro
-```
-
 ### Install globally
 
-If you plan to use the CLI regularly, install it globally.
-
-**Using npm:**
+**npm**
 
 ```bash
 npm install -g folder-structure-pro
 ```
 
-**Using pnpm:**
+**pnpm**
 
 ```bash
 pnpm add -g folder-structure-pro
 ```
 
-After installation, run:
+Then run:
 
 ```bash
 folder-structure-pro
@@ -98,52 +69,51 @@ folder-structure-pro
 
 ## Quick Start
 
-To copy the current project's folder structure to your clipboard:
+Copy the current project's folder structure:
 
 ```bash
 folder-structure-pro copy
 ```
 
-To export it as a text file:
+Export it as a text file:
 
 ```bash
 folder-structure-pro export . --output folder-structure.txt
 ```
 
-To recreate a structure from an exported file:
+Recreate a structure from an exported file:
 
 ```bash
-folder-structure-pro create structure.txt --format text --to ./new-project --yes
+folder-structure-pro create structure.txt --to ./new-project --yes
 ```
+
+Or run `folder-structure-pro` without arguments and choose an operation from the interactive menu.
 
 The destination directory for `create` must already exist.
 
-## Usage
+## How It Works
+
+The CLI supports both guided interactive operations and direct commands.
+
+![CLI command overview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-overview.svg)
+
+## Commands
 
 ### Interactive Mode
 
-Run the CLI without any arguments:
+Run the CLI without arguments:
 
 ```bash
 folder-structure-pro
 ```
 
-The CLI walks you through these steps:
+Choose between copying or exporting a folder structure and creating directories and empty files. The CLI guides you through the required inputs and shows a preview before completing the operation.
 
-1. Choose **Copy or export a folder structure** or **Create directories and empty files**.
-2. Pick the directory to scan. Press `Tab` to autocomplete folder names.
-3. Choose the output format and filters, and optionally a maximum depth.
-4. Review the preview, then choose where the structure goes: your clipboard or a file.
+Press `Esc` or `Ctrl+C` at any prompt to cancel.
 
-If the structure can't be copied to the clipboard, the CLI shows why and offers to print it in the terminal (so you can select and copy it by hand) or save it to a file.
-
-Press `Esc` or `Ctrl+C` at any prompt to cancel without making changes.
-
-> Interactive mode requires a terminal that supports prompts. In non-interactive environments, use an explicit command instead.
+> Interactive mode requires a terminal that supports prompts. In scripts and non-interactive environments, use an explicit command.
 
 ### Copy a Folder Structure
-
-Copy a generated folder structure directly to your clipboard.
 
 ```bash
 folder-structure-pro copy [directory] [options]
@@ -165,13 +135,13 @@ folder-structure-pro copy . --format json
 folder-structure-pro copy . --depth 3 --exclude dist --exclude coverage
 ```
 
-The directory defaults to your current working directory.
+The directory defaults to the current working directory.
 
-If the copy can't be done on your machine, see [Clipboard and SSH](#clipboard-and-ssh).
+If copying is unavailable in your environment, see [Clipboard and SSH](#clipboard-and-ssh).
 
 ### Export a Folder Structure
 
-Save a generated folder structure to a file or print it to standard output.
+Save the generated structure to a file or print it to standard output.
 
 ```bash
 folder-structure-pro export [directory] --output <file|->
@@ -186,39 +156,69 @@ folder-structure-pro export . --output folder-structure.txt
 # Export as JSON
 folder-structure-pro export . --format json --output structure.json
 
-# Print the structure to stdout
+# Print to standard output
 folder-structure-pro export . --output -
 
 # Overwrite an existing regular file
 folder-structure-pro export . --output folder-structure.txt --force
 ```
 
-The output directory must already exist. Existing files are not overwritten unless you explicitly pass `--force`.
+The output directory must already exist. Existing files are not overwritten unless you pass `--force`.
 
 ### Create a Folder Structure
 
-Create directories and empty files from a previously exported text or JSON structure.
+Create directories and empty files from a text tree or JSON structure.
+
+You can provide the structure in several ways:
+
+| Input          | How it works                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| Clipboard      | Reads the structure you copied. Only available when the session can read the clipboard.   |
+| Text editor    | Opens your editor so you can paste or write the structure, save it, and close the editor. |
+| File           | Reads a previously saved structure.                                                       |
+| Standard input | Reads piped content in a direct command.                                                  |
+
+For editor input, the CLI uses `$VISUAL`, then `$EDITOR`, then the system default editor. It falls back to `nano` or `vi` where available, and Notepad on Windows.
+
+After receiving the input, the CLI validates it and displays a preview. If it finds problems, it shows the relevant line numbers and text and can reopen the input for correction.
+
+![CLI create flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-create-flow.svg)
+
+**Interactive usage**
+
+Run `folder-structure-pro` and choose **Create directories and empty files**.
+
+**Direct usage**
+
+Pass a structure file or `-` for standard input:
 
 ```bash
-folder-structure-pro create <structure-file> --format <text|json> --yes [options]
+folder-structure-pro create <structure-file|-> --yes [options]
 ```
 
 Examples:
 
 ```bash
-# Create from a text structure
-folder-structure-pro create structure.txt --format text --to ./new-project --yes
+# Create from a text file
+folder-structure-pro create structure.txt --to ./new-project --yes
 
-# Create from a JSON structure
-folder-structure-pro create structure.json --format json --to ./new-project --yes
+# Read from standard input (macOS)
+pbpaste | folder-structure-pro create - --to ./new-project --yes
 
-# Skip entries that already exist
+# Read from standard input (Linux)
+xclip -selection clipboard -o | folder-structure-pro create - --to ./new-project --yes
+
+# Create from JSON and skip existing entries
 folder-structure-pro create structure.json --format json --to . --yes --on-conflict skip
 ```
 
-The destination defaults to your current working directory and must already exist.
+The destination defaults to the current working directory and must already exist.
 
-Use `--on-conflict` to decide what happens when an entry already exists:
+Text input does not need a `Directory structure:` heading. Windows line endings are supported.
+
+#### Handling existing entries
+
+Use `--on-conflict` to control what happens when an entry already exists:
 
 | Option           | Behavior                                                |
 | ---------------- | ------------------------------------------------------- |
@@ -226,71 +226,89 @@ Use `--on-conflict` to decide what happens when an entry already exists:
 | `skip`           | Keep existing entries and create the remaining entries. |
 | `replace`        | Replace existing regular files with empty files.        |
 
-The `--yes` option is required for direct creation. Replacing files requires both `--yes` and `--on-conflict replace`.
+Direct creation requires `--yes`. Replacing files requires both `--yes` and `--on-conflict replace`.
 
 ## Clipboard and SSH
 
-### What the CLI uses
+Folder Structure Pro uses the clipboard tools available on your system. Over SSH, it can also send clipboard requests through supported terminals using OSC 52.
 
-| Where you run it        | What it uses                  | Install anything?   |
-| ----------------------- | ----------------------------- | ------------------- |
-| macOS                   | `pbcopy`                      | No                  |
-| Windows                 | PowerShell, or `clip.exe`     | No                  |
-| WSL                     | The Windows tools above       | No                  |
-| Linux desktop (X11)     | `xclip`, or `xsel`            | Yes, one of them    |
-| Linux desktop (Wayland) | `wl-copy`                     | Yes, `wl-clipboard` |
-| Termux (Android)        | `termux-clipboard-set`        | Termux:API          |
-| SSH session or server   | Your own terminal (see below) | No                  |
+![CLI clipboard flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-copy-flow.svg)
 
-On Debian and Ubuntu, `sudo apt install xclip` is enough for a Linux desktop.
+### Platform support
 
-### Copying over SSH
+| Environment        | Clipboard behavior                                        |
+| ------------------ | --------------------------------------------------------- |
+| macOS              | Uses `pbcopy`.                                            |
+| Windows            | Uses PowerShell, with `clip.exe` as a fallback.           |
+| WSL                | Uses available Windows clipboard tools.                   |
+| Linux with Wayland | Uses `wl-copy` when available.                            |
+| Linux with X11     | Uses `xclip`, `xsel`, or Python 3 with GTK as a fallback. |
+| SSH                | Uses OSC 52 when the terminal supports it.                |
 
-A server has no access to the clipboard on your own computer. So over SSH, the CLI asks your terminal to set the clipboard for it. This uses a standard terminal feature called OSC 52, and you don't need to install anything on the server.
+On Linux desktops, install a clipboard utility if one is not already available. For example:
 
-Your terminal decides whether to allow it:
+```bash
+sudo apt install xclip
+```
 
-- **Usually supported:** Windows Terminal, iTerm2 (turn on "Applications in terminal may access clipboard"), kitty, WezTerm, Alacritty and foot.
-- **Known not to support it:** GNOME Terminal, the macOS Terminal app, and PuTTY by default.
-- **Inside tmux:** add `set -g allow-passthrough on` to your `~/.tmux.conf`.
+### SSH behavior
 
-A terminal never reports whether it accepted the copy. So the CLI prints "Sent" instead of "Copied", and you should paste once to check. If the paste is empty, use [`export`](#export-a-folder-structure) to save the structure to a file instead.
+When copying over SSH, the CLI sends a clipboard request to your terminal. The copied content goes to your **local machine's clipboard**, not the server's clipboard.
 
-Structures larger than about 75 KB are not sent through the terminal, because many terminals drop long messages. Use `export` for those.
+Terminals do not confirm whether they accepted the request, so the CLI reports **Sent** rather than **Copied**. Paste once to verify.
+
+Some terminal environments have limitations:
+
+- **GNOME Terminal and other VTE-based terminals**, such as Tilix and Xfce Terminal, ignore OSC 52 clipboard requests. The CLI detects this and offers alternatives.
+- **SSH with X forwarding** can work with `xclip` or `xsel` on the server because the display is forwarded to your desktop.
+- **tmux** may require `set -g allow-passthrough on` in `~/.tmux.conf`.
+- Clipboard requests larger than approximately 75 KB are not sent through the terminal because some terminals may drop long messages.
+
+### If copying doesn't work
+
+You can always print the structure and select it manually, or export it to a file:
+
+```bash
+# Print to the terminal
+folder-structure-pro export . --output -
+
+# Save to a file
+folder-structure-pro export . --output folder-structure.txt
+```
+
+In interactive mode, the CLI offers these alternatives when copying fails.
 
 ## Command Options
 
 ### Copy and Export
 
-These options control which files and directories are included in the generated structure.
-
-| Option                  | Description                                                       |
-| ----------------------- | ----------------------------------------------------------------- |
-| `--format <text\|json>` | Output format. Defaults to `text`.                                |
-| `--depth <number>`      | Maximum directory depth. Unlimited when omitted.                  |
-| `--exclude <pattern>`   | Exclude files or directories matching a pattern. Can be repeated. |
-| `--hidden`              | Include hidden files and directories.                             |
-| `--no-gitignore`        | Disable root `.gitignore` filtering.                              |
+| Option                  | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| `--format <text\|json>` | Output format. Defaults to `text`.                      |
+| `--depth <number>`      | Maximum directory depth. Unlimited when omitted.        |
+| `--exclude <pattern>`   | Exclude matching files or directories. Can be repeated. |
+| `--hidden`              | Include hidden files and directories.                   |
+| `--no-gitignore`        | Disable root `.gitignore` filtering.                    |
 
 ### Export Only
 
-| Option               | Description                                                   |
-| -------------------- | ------------------------------------------------------------- |
-| `--output <file\|->` | Export destination. Use `-` to write the structure to stdout. |
-| `--force`            | Allow overwriting an existing regular file.                   |
+| Option               | Description                                      |
+| -------------------- | ------------------------------------------------ |
+| `--output <file\|->` | Output destination. Use `-` for standard output. |
+| `--force`            | Allow overwriting an existing regular file.      |
 
 ### Create Only
 
 | Option                                | Description                                                       |
 | ------------------------------------- | ----------------------------------------------------------------- |
-| `--format <text\|json>`               | Format of the input structure.                                    |
+| `--format <text\|json>`               | Input format. Detected automatically when omitted.                |
 | `--to <directory>`                    | Destination directory. Defaults to the current working directory. |
-| `--yes`                               | Confirm direct creation without an interactive confirmation.      |
-| `--on-conflict <fail\|skip\|replace>` | Decide how to handle existing entries. Defaults to `fail`.        |
+| `--yes`                               | Confirm direct creation without an interactive prompt.            |
+| `--on-conflict <fail\|skip\|replace>` | Conflict behavior. Defaults to `fail`.                            |
 
 ## Filtering Behavior
 
-Folder Structure Pro applies the following rules while scanning a directory:
+When scanning a directory, Folder Structure Pro applies these rules:
 
 - `node_modules` is always excluded.
 - Hidden files and directories are excluded by default.
@@ -303,18 +321,15 @@ Use `--hidden` to include hidden entries or `--no-gitignore` to disable root `.g
 
 ## Troubleshooting
 
-| What you see                                                       | What it means                                                             | What to do                                                                                     |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `Sent … to your terminal's clipboard.` followed by an empty paste  | Your terminal ignored the copy request.                                   | Use a terminal that supports OSC 52, or run `folder-structure-pro export . --output tree.txt`. |
-| `No clipboard tool found. Install xclip, xsel or wl-clipboard`     | You're on a Linux desktop without a clipboard tool.                       | Run `sudo apt install xclip` (or your distribution's equivalent).                              |
-| `No desktop session found` or `This server has no desktop session` | There is no graphical session, such as a plain SSH server or a container. | Run it from a terminal that supports OSC 52, or use `export`.                                  |
-| `No terminal is available to send the copy to.`                    | The CLI is running without a terminal, for example in a script or a pipe. | Use `export . --output -` to print the structure, or `export --output <file>` to save it.      |
-
-To get the structure out of a server without using the clipboard, print it and select it with your mouse:
-
-```bash
-folder-structure-pro export . --output -
-```
+| Problem                                              | What to do                                                                                  |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Clipboard reports `Sent`, but pasting gives nothing. | Your terminal may have ignored the request. Try another supported terminal or use `export`. |
+| GNOME Terminal cannot receive a clipboard copy.      | Print or export the structure, or use a terminal that supports OSC 52.                      |
+| No clipboard tool found on Linux.                    | Install `xclip`, `xsel`, or `wl-clipboard`, depending on your desktop environment.          |
+| This server has no desktop session.                  | This is normal over SSH. Use a supported terminal, `ssh -X`, or `export`.                   |
+| No text editor found.                                | Set `EDITOR`, for example `export EDITOR=nano`, or provide a structure file.                |
+| Nothing was entered after the editor closes.         | Your editor may return before the window closes. Try `EDITOR="code --wait"`.                |
+| No terminal is available to send the copy to.        | Use `export --output <file>` or `export --output -`.                                        |
 
 ## Exit Codes
 
@@ -327,21 +342,21 @@ folder-structure-pro export . --output -
 ## Limitations and Safety
 
 - Only the root `.gitignore` is used. Nested ignore-file rules are not supported.
-- Copying over SSH cannot be confirmed, because terminals don't report whether they accepted the copy.
+- Clipboard copies over SSH cannot be confirmed by the terminal.
 - Export does not create missing parent directories.
 - The destination directory for `create` must already exist.
-- Creation is not atomic. If an operation fails partway through, previously completed changes may remain.
-- The CLI does not roll back changes or recursively delete user data.
+- A plain root line without a tree connector, such as `proj/`, is skipped and its contents are created directly in the destination. A line with a connector, such as `└── proj/`, creates the `proj` directory. The preview shows exactly what will be created.
+- Creation is all or nothing. If a step fails, or you press `Ctrl+C` during creation, changes made by that run are rolled back and replaced files are restored.
+- A power cut or forced process termination, such as `kill -9`, cannot be rolled back.
+- Rollback only removes entries created by the current run and only removes empty directories. It never recursively deletes directories, so files added by someone else are kept.
 - Existing directories, symlinks, and entries with unknown metadata are never replaced during creation.
 - Filesystem checks cannot eliminate every possible race involving concurrent path changes.
 
 ## Contributing
 
-Folder Structure Pro is open source, and contributions are welcome!
+Contributions are welcome! You can report bugs, suggest features, improve documentation, or submit code.
 
-You can help by reporting bugs, suggesting features, improving documentation, or submitting code.
-
-Before contributing, please read the [Contributing Guide](https://github.com/ShreyPurohit/folder-structure-pro-vscode/blob/main/CONTRIBUTING.md) for development setup, testing instructions, and the pull request process.
+Before contributing, read the [Contributing Guide](https://github.com/ShreyPurohit/folder-structure-pro-vscode/blob/main/CONTRIBUTING.md) for development setup, testing instructions, and the pull request process.
 
 - [Report a bug](https://github.com/ShreyPurohit/folder-structure-pro-vscode/issues)
 - [Start a discussion](https://github.com/ShreyPurohit/folder-structure-pro-vscode/discussions)

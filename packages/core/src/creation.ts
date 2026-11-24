@@ -1,6 +1,7 @@
 import {
     FolderFileSystemError,
     type EntryMetadata,
+    type CreationRollback,
     type ExclusiveFileCreation,
     type FolderPath,
     type FolderStructureFileSystem,
@@ -38,6 +39,11 @@ export interface StructureCreationResult {
     filesCreated: number;
     filesReplaced: number;
     filesSkipped: number;
+    /**
+     * Copies of replaced files that could not be removed after a successful run (relative
+     * paths). Normally empty.
+     */
+    leftoverBackups: string[];
 }
 
 export class StructureCreationValidationError extends Error {
@@ -47,21 +53,21 @@ export class StructureCreationValidationError extends Error {
     }
 }
 
-function creationCount(count: number, singular: string): string {
-    const plural = singular.endsWith('y') ? `${singular.slice(0, -1)}ies` : `${singular}s`;
-    return `${count} ${count === 1 ? singular : plural}`;
-}
-
+/**
+ * A step failed, so the run undid its own work. `notUndone` lists what could not be undone
+ * (relative paths); when it is empty, the destination is exactly as it was before.
+ */
 export class StructureCreationExecutionError extends Error {
     constructor(
         readonly relativePath: string,
-        readonly completed: StructureCreationResult,
         cause: unknown,
+        readonly notUndone: readonly string[] = [],
     ) {
-        super(
-            `Creation stopped at "${relativePath}". Completed before failure: ${creationCount(completed.directoriesCreated, 'directory')} created, ${creationCount(completed.directoriesReused, 'directory')} reused, ${creationCount(completed.filesCreated, 'file')} created, ${creationCount(completed.filesReplaced, 'file')} replaced, and ${creationCount(completed.filesSkipped, 'file')} skipped. The failed operation may have partially affected "${relativePath}"; no rollback was attempted.`,
-            { cause },
-        );
+        const outcome =
+            notUndone.length === 0
+                ? 'Nothing was changed: everything this run created was removed, and replaced files were restored.'
+                : `Some changes could not be undone. Check these paths: ${notUndone.join(', ')}.`;
+        super(`Creation stopped at "${relativePath}". ${outcome}`, { cause });
         this.name = 'StructureCreationExecutionError';
     }
 }
@@ -303,7 +309,38 @@ function emptyResult(): StructureCreationResult {
         filesCreated: 0,
         filesReplaced: 0,
         filesSkipped: 0,
+        leftoverBackups: [],
     };
+}
+
+/** What a run has changed so far, in order, so it can be undone. */
+interface CreationJournal {
+    directories: PlannedCreationEntry[];
+    files: PlannedCreationEntry[];
+    replaced: Array<{ entry: PlannedCreationEntry; backup: FolderPath }>;
+}
+
+/** Undoes a run, newest change first. Returns what could not be undone. */
+async function rollBack(fileSystem: CreationRollback, journal: CreationJournal): Promise<string[]> {
+    const notUndone: string[] = [];
+    const attempt = async (relativePath: string, undo: () => Promise<void>) => {
+        try {
+            await undo();
+        } catch {
+            notUndone.push(relativePath);
+        }
+    };
+    for (const { entry, backup } of [...journal.replaced].reverse()) {
+        await attempt(entry.relativePath, () => fileSystem.restoreFile(backup, entry.path));
+    }
+    for (const entry of [...journal.files].reverse()) {
+        await attempt(entry.relativePath, () => fileSystem.removeFile(entry.path));
+    }
+    // Directories were created parents first, so reversed means children first.
+    for (const entry of [...journal.directories].reverse()) {
+        await attempt(entry.relativePath, () => fileSystem.removeEmptyDirectory(entry.path));
+    }
+    return notUndone;
 }
 
 async function assertPlanEntryUnchanged(
@@ -331,10 +368,41 @@ async function assertKnownDirectory(
     }
 }
 
+/**
+ * The part of an AbortSignal that creation reads. Declared here so this package needs no
+ * Node or browser types; a real AbortSignal fits it.
+ */
+export interface CreationAbortSignal {
+    readonly aborted: boolean;
+    readonly reason?: unknown;
+}
+
+export interface StructureCreationOptions {
+    /** Stops the run between steps (for example on Ctrl+C); everything done so far is undone. */
+    signal?: CreationAbortSignal;
+}
+
+function throwIfAborted(signal: CreationAbortSignal | undefined): void {
+    if (!signal?.aborted) {
+        return;
+    }
+    if (signal.reason instanceof Error) {
+        throw signal.reason;
+    }
+    const error = new Error('The operation was aborted.');
+    error.name = 'AbortError';
+    throw error;
+}
+
+/**
+ * Creates the planned structure, all or nothing: if any step fails or the run is aborted,
+ * everything this run created is removed and replaced files are restored.
+ */
 export async function executeStructureCreation(
-    fileSystem: FolderStructureFileSystem & ExclusiveFileCreation,
+    fileSystem: FolderStructureFileSystem & ExclusiveFileCreation & CreationRollback,
     plan: StructureCreationPlan,
     conflictResolution: CreationConflictResolution,
+    options: StructureCreationOptions = {},
 ): Promise<StructureCreationResult> {
     const result = emptyResult();
     if (conflictResolution === 'cancel') {
@@ -346,10 +414,12 @@ export async function executeStructureCreation(
         await assertPlanEntryUnchanged(fileSystem, entry);
     }
 
+    const journal: CreationJournal = { directories: [], files: [], replaced: [] };
     const directories = plan.entries.filter((entry) => entry.kind === 'directory');
     const files = plan.entries.filter((entry) => entry.kind === 'file');
     for (const entry of [...directories, ...files]) {
         try {
+            throwIfAborted(options.signal);
             for (const parent of entry.parentDirectories) {
                 await assertKnownDirectory(fileSystem, parent);
             }
@@ -360,6 +430,7 @@ export async function executeStructureCreation(
                     result.directoriesReused++;
                 } else {
                     await fileSystem.createDirectory(entry.path);
+                    journal.directories.push(entry);
                     await assertKnownDirectory(fileSystem, entry.path);
                     result.directoriesCreated++;
                 }
@@ -370,17 +441,30 @@ export async function executeStructureCreation(
                 if (conflictResolution === 'skip') {
                     result.filesSkipped++;
                 } else {
-                    await fileSystem.writeText(entry.path, '');
+                    const backup = await fileSystem.replaceWithEmptyFile(entry.path);
+                    journal.replaced.push({ entry, backup });
                     result.filesReplaced++;
                 }
             } else {
                 await fileSystem.createFileExclusive(entry.path, '');
+                journal.files.push(entry);
                 result.filesCreated++;
             }
         } catch (cause) {
-            throw new StructureCreationExecutionError(entry.relativePath, { ...result }, cause);
+            const notUndone = await rollBack(fileSystem, journal);
+            throw new StructureCreationExecutionError(entry.relativePath, cause, notUndone);
         }
     }
 
+    // Done: the copies of replaced files are no longer needed.
+    for (const { entry, backup } of journal.replaced) {
+        try {
+            await fileSystem.discardBackup(backup);
+        } catch {
+            result.leftoverBackups.push(
+                fileSystem.relative(plan.destination, backup) || entry.relativePath,
+            );
+        }
+    }
     return result;
 }

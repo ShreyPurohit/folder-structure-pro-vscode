@@ -1,5 +1,27 @@
 # Change Log
 
+## [0.3.0] - 2026-11-24
+
+### Added
+
+- A one-time notification introduces the `npx folder-structure-pro` command-line tool, with **What's New** and **Copy command** buttons. It appears once per user; with Settings Sync on, it appears on one machine only.
+- **Folder Structure Pro: What's New** command, to open the What's New page again at any time.
+
+### Changed
+
+- The extension now starts after VS Code finishes starting up (`onStartupFinished`), so the notification can appear. This also lets commands work on VS Code versions before 1.74.
+- Redesigned **Create Folder Structure** panel: it shows the destination folder (with **Change…**), lists each line to fix, counts what will be created, offers **Insert example**, supports Ctrl+Enter, and adapts to narrow editor groups. A strip at the bottom introduces the `npx folder-structure-pro` command-line tool.
+- **Create Folder Structure** now uses the same engine as the `folder-structure-pro` CLI, so both read and create structures the same way.
+- Creation is all or nothing. If a step fails, or you press **Cancel** in the progress notification, everything that run created is removed and replaced files are restored.
+- **Replace** now empties only the files that already exist, and moves their old versions to the Trash. Before, it moved whole existing folders to the Trash, including files that were not part of the structure.
+- **Create Structure** stays disabled until the structure is valid. A structure with unreadable lines is no longer partly created; the preview lists each problem line instead.
+- The `Directory structure:` heading is optional. Before, the first line was always dropped, so a tree pasted without the heading lost its root folder.
+
+### Fixed
+
+- Names that would leave the chosen folder, such as `../` in a JSON structure, are refused before anything is created.
+- Files that already exist deeper in the structure are now detected, not only at the top level.
+
 ## [0.2.6] - 2026-11-23
 
 ### Added

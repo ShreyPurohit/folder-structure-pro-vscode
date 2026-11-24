@@ -119,12 +119,22 @@ export interface WorkspaceConfiguration {
     update(key: string, value: unknown): Thenable<void>;
 }
 
+export interface Memento {
+    get<T>(key: string, defaultValue?: T): T | undefined;
+    update(key: string, value: unknown): Thenable<void>;
+    setKeysForSync(keys: readonly string[]): void;
+}
+
 export interface ExtensionContext {
     subscriptions: Array<{ dispose(): unknown }>;
+    globalState: Memento;
+    extensionUri: Uri;
 }
 
 export interface Webview {
     html: string;
+    cspSource: string;
+    asWebviewUri(localResource: Uri): Uri;
     postMessage(message: unknown): Thenable<boolean>;
     onDidReceiveMessage(callback: (message: unknown) => unknown): { dispose(): void };
 }
@@ -140,6 +150,8 @@ export const mockFsWriteFile = vi.fn();
 export const mockFsCreateDirectory = vi.fn();
 export const mockFsReadDirectory = vi.fn(async (_uri: Uri): Promise<[string, FileType][]> => []);
 export const mockFsDelete = vi.fn();
+export const mockFsRename = vi.fn();
+export const mockFsCopy = vi.fn();
 export const mockConfigurationGet = vi.fn(
     <T>(_key: string, defaultValue?: T): T => defaultValue as T,
 );
@@ -157,6 +169,43 @@ export const mockShowOpenDialog = vi.fn(
     async (_options?: Record<string, unknown>): Promise<Uri[] | undefined> => undefined,
 );
 export const mockCreateWebviewPanel = vi.fn();
+export enum ProgressLocation {
+    Notification = 15,
+}
+export interface CancellationToken {
+    isCancellationRequested: boolean;
+    onCancellationRequested(listener: () => void): { dispose(): void };
+}
+/** Tokens of running progress tasks; `cancelProgress` cancels them like the Cancel button. */
+let activeTokens: Array<{ token: CancellationToken; listeners: Array<() => void> }> = [];
+export function cancelProgress(): void {
+    for (const active of activeTokens) {
+        active.token.isCancellationRequested = true;
+        for (const listener of active.listeners) {
+            listener();
+        }
+    }
+}
+async function withProgress<T>(
+    _options: unknown,
+    task: (progress: { report(value: unknown): void }, token: CancellationToken) => Thenable<T>,
+): Promise<T> {
+    const listeners: Array<() => void> = [];
+    const token: CancellationToken = {
+        isCancellationRequested: false,
+        onCancellationRequested(listener: () => void) {
+            listeners.push(listener);
+            return { dispose: () => undefined };
+        },
+    };
+    activeTokens.push({ token, listeners });
+    try {
+        return await task({ report: () => undefined }, token);
+    } finally {
+        activeTokens = activeTokens.filter((active) => active.token !== token);
+    }
+}
+export const mockWithProgress = withProgress;
 export const mockClipboardWriteText = vi.fn();
 export const mockRegisterCommand = vi.fn((...args: unknown[]) => ({ dispose: vi.fn(), args }));
 
@@ -175,6 +224,8 @@ export const workspace = {
         createDirectory: mockFsCreateDirectory,
         readDirectory: mockFsReadDirectory,
         delete: mockFsDelete,
+        rename: mockFsRename,
+        copy: mockFsCopy,
     },
     getConfiguration: mockGetConfiguration,
     workspaceFolders: [{ uri: Uri.file('/workspace') }],
@@ -187,6 +238,7 @@ export const window = {
     showErrorMessage: mockShowErrorMessage,
     showOpenDialog: mockShowOpenDialog,
     createWebviewPanel: mockCreateWebviewPanel,
+    withProgress: mockWithProgress,
     activeTextEditor: undefined as
         | {
               document: { uri: Uri };
@@ -195,12 +247,22 @@ export const window = {
         | undefined,
 };
 
+export const mockOpenExternal = vi.fn(async (_uri: Uri) => true);
 export const env = {
     clipboard: {
         writeText: mockClipboardWriteText,
     },
+    openExternal: mockOpenExternal,
 };
 
+export const mockGetExtension = vi.fn(
+    (_id: string): { packageJSON: { version?: string } } | undefined => ({
+        packageJSON: { version: '0.3.0' },
+    }),
+);
+export const extensions = {
+    getExtension: mockGetExtension,
+};
 export const commands = {
     registerCommand: mockRegisterCommand,
 };
@@ -212,6 +274,9 @@ export function resetVscodeMocks(): void {
     mockFsCreateDirectory.mockReset();
     mockFsReadDirectory.mockReset();
     mockFsDelete.mockReset();
+    mockFsRename.mockReset();
+    mockFsCopy.mockReset();
+    activeTokens = [];
     mockConfigurationGet.mockReset();
     mockConfigurationGet.mockImplementation(
         <T>(_key: string, defaultValue?: T): T => defaultValue as T,
@@ -231,6 +296,9 @@ export function resetVscodeMocks(): void {
     mockShowOpenDialog.mockReset();
     mockCreateWebviewPanel.mockReset();
     mockClipboardWriteText.mockReset();
+    mockOpenExternal.mockClear();
+    mockGetExtension.mockReset();
+    mockGetExtension.mockImplementation(() => ({ packageJSON: { version: '0.3.0' } }));
     mockRegisterCommand.mockReset();
     mockRegisterCommand.mockImplementation((...args: unknown[]) => ({
         dispose: vi.fn(),

@@ -237,7 +237,7 @@ describe('CLI package tarball', () => {
 
         expect(manifest).toMatchObject({
             name: 'folder-structure-pro',
-            version: '0.1.1',
+            version: '0.2.0',
             description: 'CLI to generate, copy, export, and recreate project folder structures.',
             author: 'Shrey Purohit',
             keywords: [
@@ -380,7 +380,7 @@ describe('CLI package tarball', () => {
 
         expect(installedManifest).toMatchObject({
             name: 'folder-structure-pro',
-            version: '0.1.1',
+            version: '0.2.0',
             bin: { 'folder-structure-pro': 'dist/index.js' },
         });
 

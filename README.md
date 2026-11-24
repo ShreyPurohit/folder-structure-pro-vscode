@@ -52,9 +52,11 @@
 ### 🏗️ Create Folder Structure
 
 - 📝 **Multiple Input Formats**: Support for JSON and Plain Text
-- 🖥️ **Modern UI**: Live preview, validation, and line numbers
-- 🔄 **Smart Handling**: Replace/Skip prompts for existing files
-- 🗑️ **Safe Replace**: Sends replaced items to Trash
+- 🖥️ **Modern UI**: Shows the destination folder, a live preview of what will be created, each line to fix, and a count on the Create button; works in narrow editor groups
+- 🔄 **Smart Handling**: Existing folders are reused; for existing files you choose Replace or Skip
+- 🗑️ **Safe Replace**: Only the conflicting files are emptied, and their old versions go to the Trash
+- 🛡️ **All or Nothing**: If anything fails, or you press Cancel, everything that run created is removed and replaced files are restored
+- 🔒 **Safe Names**: Names that would leave the chosen folder (such as `../`) are refused before anything is created
 - 💬 **Inline Comment Support**: `#` and `//` comments are silently ignored — paste annotated structures from READMEs or AI output directly
 
 ### 📄 Copy File Name
@@ -106,7 +108,7 @@ folder-structure-pro copy
 folder-structure-pro export . --output folder-structure.txt
 
 # Recreate a project from an exported structure
-folder-structure-pro create structure.txt --format text --to ./new-project --yes
+folder-structure-pro create structure.txt --to ./new-project --yes
 ```
 
 The CLI supports interactive mode, clipboard copying, text and JSON formats, flexible filtering, and safe structure creation.
@@ -259,12 +261,12 @@ Directory structure:
 
 ### 📝 Plain Text Rules:
 
-- ✅ First line is treated as a header (can contain any text)
+- ✅ The `Directory structure:` heading is optional
 - 🔗 Every line must use tree connectors (`├──` or `└──`)
 - 📁 One or more root entries; directories end with `/`, and root-level files are supported
 - 📏 Consistent indentation (increases by one level each time)
 - 💬 Inline comments (`# ...` or `// ...`) after a space are silently ignored — names like `C#-project` are safe
-- ⚠️ Invalid lines are highlighted; confirmation required if errors exist
+- ⚠️ Invalid lines are listed in the preview with their line numbers; **Create Structure** stays disabled until every line can be read
 
 ### 📋 Copy Line Path
 
@@ -285,10 +287,10 @@ Directory structure:
 
 ### 🏗️ Create Folder Structure
 
-1. 📖 **Reads** input from the modern webview interface
-2. ✅ **Validates** and parses structure (JSON or Plain Text)
-3. ⚠️ **Prompts** for Replace/Skip when items already exist
-4. ✨ **Generates** folders and files safely (no accidental overwrites)
+1. 📖 **Reads** input from the modern webview interface, with the same rules as the CLI
+2. ✅ **Validates** the structure and checks every name and existing path in the chosen folder
+3. ⚠️ **Asks** Replace or Skip when files already exist, listing them
+4. ✨ **Creates** everything, or nothing: a failure or Cancel undoes the whole run
 
 ### 📄 Copy File Name
 

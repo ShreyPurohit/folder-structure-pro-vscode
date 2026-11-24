@@ -3,6 +3,7 @@ import { copyFileName } from './copyFileName';
 import { copyLinePath } from './copyLinePath';
 import { copyStructureAsJson, copyStructureAsPlainText } from './copyStructure';
 import { createStructure } from './createStructure';
+import { showWhatsNew } from '../whatsNew';
 
 export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
@@ -14,6 +15,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand('extension.copyFolderStructureAsJson', copyStructureAsJson),
         vscode.commands.registerCommand('extension.createProjectFromStructure', createStructure),
         vscode.commands.registerCommand('extension.copyLinePath', copyLinePath),
+        vscode.commands.registerCommand('extension.showWhatsNew', () => showWhatsNew(context)),
     );
 }
 

@@ -39,7 +39,8 @@ function createPrompts(overrides: Partial<CliPrompts> = {}): CliPrompts {
         confirmOverwrite: vi.fn().mockResolvedValue(false),
         chooseCopyFallback: vi.fn().mockResolvedValue('cancel'),
         printContent: vi.fn(),
-        chooseStructureFormat: vi.fn().mockResolvedValue('text'),
+        chooseStructureSource: vi.fn().mockResolvedValue('file'),
+        chooseInvalidStructureAction: vi.fn().mockResolvedValue('cancel'),
         enterStructurePath: vi.fn().mockResolvedValue('folder-structure.txt'),
         enterDestinationDirectory: vi.fn().mockResolvedValue(''),
         chooseFileConflictResolution: vi.fn().mockResolvedValue('skip'),
@@ -531,6 +532,60 @@ describe('CLI interaction', () => {
             expect(exitCode).toBe(0);
             expect(prompts.warn).toHaveBeenCalledWith(expect.stringContaining('Sent'));
             expect(prompts.outro).toHaveBeenCalledWith(expect.stringMatching(/^💙/));
+        });
+
+        it.each([
+            ['an SSH session', { SSH_TTY: '/dev/pts/1' }, true],
+            ['a local session', {}, false],
+        ])('offers "print here" only when it helps (%s)', async (_label, env, expected) => {
+            const cwd = await createTemporaryDirectory();
+            const prompts = createPrompts({
+                chooseDestination: vi.fn().mockResolvedValue('print'),
+            });
+            const clipboard = { write: vi.fn() };
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard,
+                prompts,
+                cwd,
+                env,
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.chooseDestination).toHaveBeenCalledWith({
+                offerPrint: expected,
+                offerClipboard: true,
+            });
+            expect(clipboard.write).not.toHaveBeenCalled();
+            expect(prompts.printContent).toHaveBeenCalledOnce();
+            expect(prompts.outro).toHaveBeenCalledWith(expect.stringContaining('Printed'));
+        });
+
+        it('warns and drops "copy" from the menu when copying is known to be impossible', async () => {
+            const cwd = await createTemporaryDirectory();
+            const prompts = createPrompts({
+                chooseDestination: vi.fn().mockResolvedValue('print'),
+            });
+            const clipboard = {
+                write: vi.fn(),
+                unavailableReason: vi
+                    .fn()
+                    .mockResolvedValue('GNOME Terminal cannot receive a copy.'),
+            };
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard,
+                prompts,
+                cwd,
+                env: {},
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.warn).toHaveBeenCalledWith('GNOME Terminal cannot receive a copy.');
+            expect(prompts.chooseDestination).toHaveBeenCalledWith({
+                offerPrint: true,
+                offerClipboard: false,
+            });
+            expect(clipboard.write).not.toHaveBeenCalled();
+            expect(prompts.printContent).toHaveBeenCalledOnce();
         });
 
         it('does not offer the menu for unrelated clipboard errors', async () => {

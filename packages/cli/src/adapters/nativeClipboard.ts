@@ -8,9 +8,20 @@ export interface ClipboardCommand {
     env?: Record<string, string>;
     /** Overrides the default time limit; PowerShell can start slowly. */
     timeoutMs?: number;
+    /**
+     * For tools that must keep running to serve the clipboard (X11 selections belong to the
+     * process that set them). The tool prints "ready" once the text is on the clipboard,
+     * then is left running in the background, like xclip does.
+     */
+    background?: boolean;
+    /** Exit code meaning "this tool cannot work here", reported like a missing tool. */
+    unavailableExitCode?: number;
+    /** The tool prints the clipboard text to stdout (used for reading). */
+    capture?: boolean;
 }
 
-export type RunClipboardCommand = (command: ClipboardCommand, input: Buffer) => Promise<void>;
+/** Runs a tool with `input` on stdin. Resolves with its stdout when `capture` is set. */
+export type RunClipboardCommand = (command: ClipboardCommand, input: Buffer) => Promise<string>;
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const POWERSHELL_TIMEOUT_MS = 20_000;
@@ -25,6 +36,72 @@ const POWERSHELL_SCRIPT =
     '[Console]::OpenStandardInput().CopyTo($buffer); ' +
     'Set-Clipboard -Value ([System.Text.Encoding]::UTF8.GetString($buffer.ToArray())) ' +
     '} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }';
+
+// Prints the clipboard as UTF-8 text. Errors go to stderr as plain text.
+const POWERSHELL_READ_SCRIPT =
+    "$ErrorActionPreference = 'Stop'; " +
+    'try { ' +
+    '[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; ' +
+    '$text = Get-Clipboard -Raw; ' +
+    'if ($null -ne $text) { [Console]::Out.Write($text) } ' +
+    '} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }';
+
+const GTK_TIMEOUT_MS = 10_000;
+const GTK_UNAVAILABLE_EXIT_CODE = 3;
+
+// Last resort for Linux desktops with no xclip, xsel or wl-copy (for example a fresh
+// Ubuntu): Python 3 and GTK 3 ship with most desktops. Runs until another program takes
+// over the clipboard, the way xclip does.
+// Both GTK scripts start the same way: exit code 3 when Python or GTK is missing, 4 when
+// there is no display.
+const GTK_PREAMBLE = [
+    'import sys',
+    'try:',
+    '    import gi',
+    "    gi.require_version('Gtk', '3.0')",
+    "    gi.require_version('Gdk', '3.0')",
+    '    from gi.repository import Gtk, Gdk',
+    'except Exception:',
+    `    sys.exit(${GTK_UNAVAILABLE_EXIT_CODE})`,
+    'if not Gtk.init_check()[0]:',
+    "    sys.stderr.write('Cannot open the display.\\n')",
+    '    sys.exit(4)',
+];
+
+const GTK_SCRIPT = [
+    ...GTK_PREAMBLE,
+    "text = sys.stdin.buffer.read().decode('utf-8')",
+    'clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)',
+    'clipboard.set_text(text, -1)',
+    'clipboard.store()',
+    'ignore_own_change = [True]',
+    'def on_owner_change(*_):',
+    '    if ignore_own_change[0]:',
+    '        ignore_own_change[0] = False',
+    '        return',
+    '    Gtk.main_quit()',
+    "clipboard.connect('owner-change', on_owner_change)",
+    "sys.stdout.write('ready\\n')",
+    'sys.stdout.flush()',
+    'Gtk.main()',
+].join('\n');
+
+const GTK_READ_SCRIPT = [
+    ...GTK_PREAMBLE,
+    'text = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text()',
+    "sys.stdout.buffer.write((text or '').encode('utf-8'))",
+].join('\n');
+
+function windowsReadCommands(): ClipboardCommand[] {
+    const powershell = (command: string): ClipboardCommand => ({
+        command,
+        args: ['-NoProfile', '-NonInteractive', '-Command', POWERSHELL_READ_SCRIPT],
+        encoding: 'utf8',
+        capture: true,
+        timeoutMs: POWERSHELL_TIMEOUT_MS,
+    });
+    return [powershell('powershell.exe'), powershell('pwsh')];
+}
 
 function windowsCommands(): ClipboardCommand[] {
     const powershell = (command: string): ClipboardCommand => ({
@@ -84,6 +161,61 @@ export function getClipboardCommands(
         commands.push(
             { command: 'xclip', args: ['-selection', 'clipboard', '-in'], encoding: 'utf8' },
             { command: 'xsel', args: ['--clipboard', '--input'], encoding: 'utf8' },
+            {
+                command: 'python3',
+                args: ['-c', GTK_SCRIPT],
+                encoding: 'utf8',
+                background: true,
+                timeoutMs: GTK_TIMEOUT_MS,
+                unavailableExitCode: GTK_UNAVAILABLE_EXIT_CODE,
+                // GTK would otherwise pick Wayland, where a program with no window may be refused.
+                env: { GDK_BACKEND: 'x11' },
+            },
+        );
+    }
+    return commands;
+}
+
+/** Lists the tools that can read the clipboard on this system, best first. */
+export function getClipboardReadCommands(
+    platform: NodeJS.Platform,
+    env: NodeJS.ProcessEnv,
+): ClipboardCommand[] {
+    const reader = (
+        command: string,
+        args: string[],
+        extra: Partial<ClipboardCommand> = {},
+    ): ClipboardCommand => ({ command, args, encoding: 'utf8', capture: true, ...extra });
+
+    if (platform === 'darwin') {
+        return [reader('pbpaste', [], { env: { LC_CTYPE: 'UTF-8' } })];
+    }
+    if (platform === 'win32') {
+        return windowsReadCommands();
+    }
+    if (platform !== 'linux') {
+        return [];
+    }
+
+    const commands: ClipboardCommand[] = [];
+    if (isWsl(env)) {
+        commands.push(...windowsReadCommands());
+    }
+    if (env.TERMUX_VERSION) {
+        commands.push(reader('termux-clipboard-get', []));
+    }
+    if (env.WAYLAND_DISPLAY) {
+        commands.push(reader('wl-paste', ['--no-newline']));
+    }
+    if (env.DISPLAY) {
+        commands.push(
+            reader('xclip', ['-selection', 'clipboard', '-out']),
+            reader('xsel', ['--clipboard', '--output']),
+            reader('python3', ['-c', GTK_READ_SCRIPT], {
+                timeoutMs: GTK_TIMEOUT_MS,
+                unavailableExitCode: GTK_UNAVAILABLE_EXIT_CODE,
+                env: { GDK_BACKEND: 'x11' },
+            }),
         );
     }
     return commands;
@@ -99,13 +231,17 @@ export const runClipboardCommand: RunClipboardCommand = (clipboardCommand, input
     new Promise((resolve, reject) => {
         // Only 'exit' is awaited, never 'close': xclip, xsel and wl-copy fork a background
         // process that keeps serving the selection and holds the inherited pipes open.
+        const background = clipboardCommand.background === true;
+        const capture = clipboardCommand.capture === true;
         const child = spawn(clipboardCommand.command, clipboardCommand.args, {
             shell: false,
-            stdio: ['pipe', 'ignore', 'pipe'],
+            stdio: ['pipe', background || capture ? 'pipe' : 'ignore', 'pipe'],
+            detached: background,
             env: { ...process.env, ...clipboardCommand.env },
             windowsHide: true,
         });
         let stderr = '';
+        let stdout = '';
         let settled = false;
         const settle = (error?: Error): void => {
             if (settled) {
@@ -116,9 +252,15 @@ export const runClipboardCommand: RunClipboardCommand = (clipboardCommand, input
             child.stderr?.destroy();
             if (error) {
                 reject(error);
-            } else {
-                resolve();
+                return;
             }
+            if (background) {
+                // Leave the tool running to serve the clipboard, without keeping Node alive.
+                child.stdout?.destroy();
+                child.stdin?.destroy();
+                child.unref();
+            }
+            resolve(capture ? stdout : '');
         };
         const timer = setTimeout(() => {
             child.kill();
@@ -129,17 +271,34 @@ export const runClipboardCommand: RunClipboardCommand = (clipboardCommand, input
         child.stderr?.on('data', (chunk: string) => {
             stderr += chunk;
         });
+        if (background || capture) {
+            child.stdout?.setEncoding('utf8');
+            child.stdout?.on('data', (chunk: string) => {
+                stdout += chunk;
+                if (background && stdout.includes('ready')) {
+                    settle();
+                }
+            });
+        }
         child.stdin?.on('error', () => undefined); // the tool may exit before reading everything
         child.on('error', (error: NodeJS.ErrnoException) => {
             settle(new Error(error.code === 'ENOENT' ? NOT_FOUND : error.message));
         });
-        child.on('exit', (code) => {
-            settle(
-                code === 0
-                    ? undefined
-                    : new Error(stderr.trim().split('\n')[0] || `it exited with code ${code}`),
-            );
-        });
+        // Reading tools exit after printing, so wait for 'close' to be sure all output arrived.
+        const onFinished = (code: number | null): void => {
+            if (background && code === 0 && !settled) {
+                settle(new Error('it exited before the copy finished'));
+            } else if (code === clipboardCommand.unavailableExitCode) {
+                settle(new Error(NOT_FOUND));
+            } else {
+                settle(
+                    code === 0
+                        ? undefined
+                        : new Error(stderr.trim().split('\n')[0] || `it exited with code ${code}`),
+                );
+            }
+        };
+        child.on(capture ? 'close' : 'exit', onFinished);
         child.stdin?.end(input);
     });
 
@@ -171,32 +330,33 @@ function describeMissingTools(
     return `${commands[0].command} was not found.`;
 }
 
+function describeNoCommands(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string {
+    return platform !== 'linux'
+        ? 'This operating system has no supported clipboard tool.'
+        : isRemoteSession(env)
+          ? 'This server has no desktop session, so it has no clipboard.'
+          : 'No desktop session found (DISPLAY and WAYLAND_DISPLAY are not set).';
+}
+
 /**
- * Copies text with the first working platform tool.
+ * Runs the first tool that works and returns its output (empty for tools that only write).
  * Rejects with a short, human-readable reason (possibly several sentences) if none work.
  */
-export async function writeNativeClipboard(
-    text: string,
+async function runFirstWorking(
+    commands: ClipboardCommand[],
     platform: NodeJS.Platform,
     env: NodeJS.ProcessEnv,
-    run: RunClipboardCommand = runClipboardCommand,
-): Promise<void> {
-    const commands = getClipboardCommands(platform, env);
+    run: RunClipboardCommand,
+    inputFor: (command: ClipboardCommand) => Buffer,
+): Promise<string> {
     if (commands.length === 0) {
-        throw new Error(
-            platform !== 'linux'
-                ? 'This operating system has no supported clipboard tool.'
-                : isRemoteSession(env)
-                  ? 'This server has no desktop session, so it has no clipboard.'
-                  : 'No desktop session found (DISPLAY and WAYLAND_DISPLAY are not set).',
-        );
+        throw new Error(describeNoCommands(platform, env));
     }
 
     const failures: Array<{ command: string; reason: string }> = [];
     for (const command of commands) {
         try {
-            await run(command, encodeInput(text, command.encoding));
-            return;
+            return await run(command, inputFor(command));
         } catch (error) {
             failures.push({
                 command: command.command,
@@ -213,5 +373,28 @@ export async function writeNativeClipboard(
             .filter((failure) => failure.reason !== NOT_FOUND)
             .map((failure) => `${failure.command} failed: ${failure.reason}`)
             .join('; '),
+    );
+}
+
+/** Copies text with the first working platform tool. */
+export async function writeNativeClipboard(
+    text: string,
+    platform: NodeJS.Platform,
+    env: NodeJS.ProcessEnv,
+    run: RunClipboardCommand = runClipboardCommand,
+): Promise<void> {
+    await runFirstWorking(getClipboardCommands(platform, env), platform, env, run, (command) =>
+        encodeInput(text, command.encoding),
+    );
+}
+
+/** Reads the clipboard text with the first working platform tool ('' when it holds no text). */
+export function readNativeClipboard(
+    platform: NodeJS.Platform,
+    env: NodeJS.ProcessEnv,
+    run: RunClipboardCommand = runClipboardCommand,
+): Promise<string> {
+    return runFirstWorking(getClipboardReadCommands(platform, env), platform, env, run, () =>
+        Buffer.alloc(0),
     );
 }

@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EditorUnavailableError, type EditorAdapter } from '../src/adapters/editor.js';
 import { NodeFileSystemAdapter } from '../src/adapters/nodeFileSystem.js';
 import { CANCELLED, type CliPrompts } from '../src/presentation.js';
 import { runCli } from '../src/cli.js';
@@ -39,7 +40,8 @@ function createPrompts(overrides: Partial<CliPrompts> = {}): CliPrompts {
         confirmOverwrite: vi.fn().mockResolvedValue(false),
         chooseCopyFallback: vi.fn().mockResolvedValue('cancel'),
         printContent: vi.fn(),
-        chooseStructureFormat: vi.fn().mockResolvedValue('text'),
+        chooseStructureSource: vi.fn().mockResolvedValue('file'),
+        chooseInvalidStructureAction: vi.fn().mockResolvedValue('cancel'),
         enterStructurePath: vi.fn().mockResolvedValue('structure.txt'),
         enterDestinationDirectory: vi.fn().mockResolvedValue('destination'),
         chooseFileConflictResolution: vi.fn().mockResolvedValue('skip'),
@@ -105,7 +107,6 @@ describe('CLI structure creation', () => {
         const inputPath = path.join(cwd, 'structure.json');
         await fs.writeFile(inputPath, '{"app":{"index":"ts"}}', 'utf8');
         const prompts = createPrompts({
-            chooseStructureFormat: vi.fn().mockResolvedValue('json'),
             enterStructurePath: vi.fn().mockResolvedValue(inputPath),
             enterDestinationDirectory: vi.fn().mockResolvedValue(''),
         });
@@ -126,28 +127,22 @@ describe('CLI structure creation', () => {
     it.each([
         [
             'plain text with invalid indentation',
-            'text',
             `Directory structure:
 └── app/
         └── deep.ts`,
         ],
-        ['malformed JSON', 'json', '{ invalid'],
-        ['JSON with a traversal name', 'json', '{"../outside":null}'],
-        ['JSON with duplicate generated paths', 'json', '{"bundle":["js","js"]}'],
-        ['JSON with a file/directory collision', 'json', '{"app.ts":{},"app":"ts"}'],
+        ['malformed JSON', '{ invalid'],
     ] as const)(
-        'rejects %s before changing the destination',
-        async (_description, format, content) => {
+        'explains %s and offers to fix it before changing the destination',
+        async (_description, content) => {
             const cwd = await createTemporaryDirectory();
             const inputPath = path.join(cwd, 'input');
             const destination = path.join(cwd, 'destination');
             await fs.writeFile(inputPath, content, 'utf8');
             await fs.mkdir(destination);
             const prompts = createPrompts({
-                chooseStructureFormat: vi.fn().mockResolvedValue(format),
                 enterStructurePath: vi.fn().mockResolvedValue(inputPath),
             });
-
             await expect(
                 runCli({
                     fileSystem: new NodeFileSystemAdapter(),
@@ -155,14 +150,39 @@ describe('CLI structure creation', () => {
                     prompts,
                     cwd,
                 }),
-            ).resolves.toBe(1);
-
-            await expect(fs.readdir(destination)).resolves.toEqual([]);
-            expect(prompts.confirmStructureCreation).not.toHaveBeenCalled();
+            ).resolves.toBe(0);
             expect(prompts.error).toHaveBeenCalledOnce();
+            expect(prompts.chooseInvalidStructureAction).toHaveBeenCalledOnce();
+            expect(prompts.cancel).toHaveBeenCalledWith('Operation cancelled.');
+            expect(prompts.confirmStructureCreation).not.toHaveBeenCalled();
+            await expect(fs.readdir(destination)).resolves.toEqual([]);
         },
     );
-
+    it.each([
+        ['JSON with a traversal name', '{"../outside":null}'],
+        ['JSON with duplicate generated paths', '{"bundle":["js","js"]}'],
+        ['JSON with a file/directory collision', '{"app.ts":{},"app":"ts"}'],
+    ] as const)('rejects %s before changing the destination', async (_description, content) => {
+        const cwd = await createTemporaryDirectory();
+        const inputPath = path.join(cwd, 'input');
+        const destination = path.join(cwd, 'destination');
+        await fs.writeFile(inputPath, content, 'utf8');
+        await fs.mkdir(destination);
+        const prompts = createPrompts({
+            enterStructurePath: vi.fn().mockResolvedValue(inputPath),
+        });
+        await expect(
+            runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard: { write: vi.fn() },
+                prompts,
+                cwd,
+            }),
+        ).resolves.toBe(1);
+        await expect(fs.readdir(destination)).resolves.toEqual([]);
+        expect(prompts.confirmStructureCreation).not.toHaveBeenCalled();
+        expect(prompts.error).toHaveBeenCalledOnce();
+    });
     it('rejects a nonexistent destination before preview or mutation', async () => {
         const cwd = await createTemporaryDirectory();
         const inputPath = path.join(cwd, 'structure.txt');
@@ -233,7 +253,6 @@ describe('CLI structure creation', () => {
             return originalLstat(filePath);
         });
         const prompts = createPrompts({
-            chooseStructureFormat: vi.fn().mockResolvedValue('json'),
             enterStructurePath: vi.fn().mockResolvedValue(inputPath),
         });
 
@@ -375,7 +394,7 @@ describe('CLI structure creation', () => {
     it('cancels without mutation at each creation prompt stage', async () => {
         const stages = [
             'chooseOperation',
-            'chooseStructureFormat',
+            'chooseStructureSource',
             'enterStructurePath',
             'enterDestinationDirectory',
             'chooseFileConflictResolution',
@@ -409,7 +428,7 @@ describe('CLI structure creation', () => {
         }
     });
 
-    it('reports replacements, creations, and the failed path when execution partially fails', async () => {
+    it('leaves the destination exactly as it was when a real write fails halfway', async () => {
         const cwd = await createTemporaryDirectory();
         const inputPath = path.join(cwd, 'structure.json');
         await fs.writeFile(
@@ -430,7 +449,6 @@ describe('CLI structure creation', () => {
             await createFileExclusive(filePath, content);
         });
         const prompts = createPrompts({
-            chooseStructureFormat: vi.fn().mockResolvedValue('json'),
             enterStructurePath: vi.fn().mockResolvedValue(inputPath),
             chooseFileConflictResolution: vi.fn().mockResolvedValue('replace'),
         });
@@ -444,26 +462,201 @@ describe('CLI structure creation', () => {
             }),
         ).resolves.toBe(1);
 
-        const appStats = await fs.stat(path.join(destination, 'app'));
-        expect(appStats.isDirectory()).toBe(true);
-        await expect(fs.readFile(path.join(destination, 'replace.txt'), 'utf8')).resolves.toBe('');
-        await expect(fs.readFile(path.join(destination, 'created.txt'), 'utf8')).resolves.toBe('');
-        await expect(fs.stat(path.join(destination, 'failed.txt'))).rejects.toMatchObject({
-            code: 'ENOENT',
-        });
-        expect(prompts.error).toHaveBeenCalledWith(
-            expect.stringContaining(
-                'Completed before failure: 1 directory created, 0 directories reused, 1 file created, 1 file replaced, and 0 files skipped.',
-            ),
-        );
-        expect(prompts.error).toHaveBeenCalledWith(
-            expect.stringContaining('Creation stopped at "failed.txt"'),
+        // Only what was there before remains, and the replaced file has its content back.
+        await expect(fs.readdir(destination)).resolves.toEqual(['replace.txt']);
+        await expect(fs.readFile(path.join(destination, 'replace.txt'), 'utf8')).resolves.toBe(
+            'old content',
         );
         expect(prompts.error).toHaveBeenCalledWith(
             expect.stringContaining(
-                'The failed operation may have partially affected "failed.txt"; no rollback was attempted.',
+                'Creation stopped at "failed.txt". Nothing was changed: everything this run created was removed, and replaced files were restored.',
             ),
         );
         expect(prompts.error).toHaveBeenCalledWith(expect.stringContaining('Cause: disk full'));
+    });
+
+    describe('where the structure comes from', () => {
+        const TREE = 'Directory structure:\n└── app/\n    ├── index.ts\n    └── README';
+        const BAD_TREE = 'Directory structure:\n└── app/\n            └── too-deep.ts';
+
+        const fakeEditor = (...saves: Array<string | Error>) => {
+            const edit = vi.fn(async (_initial: string) => {
+                const next = saves.shift();
+                if (next instanceof Error) {
+                    throw next;
+                }
+                return next ?? '';
+            });
+            return { describe: () => 'Save and close.', edit } satisfies EditorAdapter;
+        };
+
+        async function run(
+            options: {
+                prompts?: Partial<CliPrompts>;
+                editor?: EditorAdapter;
+                clipboard?: Partial<{
+                    read: () => Promise<string>;
+                    canRead: () => boolean;
+                }>;
+            } = {},
+        ) {
+            const cwd = await createTemporaryDirectory();
+            await fs.mkdir(path.join(cwd, 'destination'));
+            const prompts = createPrompts(options.prompts);
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard: { write: vi.fn(), ...options.clipboard },
+                editor: options.editor,
+                prompts,
+                cwd,
+            });
+            return { exitCode, prompts, destination: path.join(cwd, 'destination') };
+        }
+
+        it('creates from text pasted in the editor, and shows how to save and exit', async () => {
+            const editor = fakeEditor(`# a comment\n\n${TREE}`);
+            const { exitCode, prompts, destination } = await run({
+                prompts: { chooseStructureSource: vi.fn().mockResolvedValue('editor') },
+                editor,
+            });
+            expect(exitCode).toBe(0);
+            await expect(fs.stat(path.join(destination, 'app', 'index.ts'))).resolves.toBeTruthy();
+            const opened = editor.edit.mock.calls[0][0];
+            expect(opened).toContain('# Save and close.');
+            expect(opened).toContain('# Lines that start with "# " are ignored.');
+            expect(prompts.chooseStructureSource).toHaveBeenCalledWith({ clipboard: false });
+        });
+
+        it('offers the clipboard only when it can be read, and creates from it', async () => {
+            const read = vi.fn().mockResolvedValue(TREE);
+            const { exitCode, prompts, destination } = await run({
+                prompts: { chooseStructureSource: vi.fn().mockResolvedValue('clipboard') },
+                clipboard: { canRead: () => true, read },
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.chooseStructureSource).toHaveBeenCalledWith({ clipboard: true });
+            await expect(fs.stat(path.join(destination, 'app', 'README'))).resolves.toBeTruthy();
+        });
+
+        it('shows the preview and asks for confirmation before creating from pasted text', async () => {
+            const { prompts, destination } = await run({
+                prompts: {
+                    chooseStructureSource: vi.fn().mockResolvedValue('editor'),
+                    confirmStructureCreation: vi.fn().mockResolvedValue(false),
+                },
+                editor: fakeEditor(TREE),
+            });
+            expect(prompts.showPreview).toHaveBeenCalledWith(
+                expect.stringContaining('[create] app/'),
+                expect.any(String),
+            );
+            expect(prompts.cancel).toHaveBeenCalledWith(
+                'Structure creation cancelled; no changes were made.',
+            );
+            expect(await fs.readdir(destination)).toEqual([]);
+        });
+
+        it('lets the user fix an invalid structure in the editor, and tells them what was wrong', async () => {
+            const editor = fakeEditor(BAD_TREE, TREE);
+            const { exitCode, prompts, destination } = await run({
+                prompts: {
+                    chooseStructureSource: vi.fn().mockResolvedValue('editor'),
+                    chooseInvalidStructureAction: vi.fn().mockResolvedValue('edit'),
+                },
+                editor,
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.error).toHaveBeenCalledWith(
+                expect.stringContaining('- line 3: └── too-deep.ts'),
+            );
+            const reopened = editor.edit.mock.calls[1][0];
+            expect(reopened).toContain('#   line 3: └── too-deep.ts');
+            expect(reopened).toContain(BAD_TREE);
+            await expect(fs.stat(path.join(destination, 'app', 'index.ts'))).resolves.toBeTruthy();
+        });
+
+        it('lets the user fix an invalid clipboard structure too', async () => {
+            const editor = fakeEditor(TREE);
+            const { exitCode, destination } = await run({
+                prompts: {
+                    chooseStructureSource: vi.fn().mockResolvedValue('clipboard'),
+                    chooseInvalidStructureAction: vi.fn().mockResolvedValue('edit'),
+                },
+                editor,
+                clipboard: { canRead: () => true, read: async () => BAD_TREE },
+            });
+            expect(exitCode).toBe(0);
+            expect(editor.edit.mock.calls[0][0]).toContain(BAD_TREE);
+            await expect(fs.stat(path.join(destination, 'app', 'index.ts'))).resolves.toBeTruthy();
+        });
+
+        it('creates nothing when an invalid structure is cancelled', async () => {
+            const { exitCode, prompts, destination } = await run({
+                prompts: { chooseStructureSource: vi.fn().mockResolvedValue('editor') },
+                editor: fakeEditor(BAD_TREE),
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.cancel).toHaveBeenCalledWith('Operation cancelled.');
+            expect(await fs.readdir(destination)).toEqual([]);
+        });
+
+        it('returns to the menu when there is nothing to use', async () => {
+            const chooseStructureSource = vi
+                .fn()
+                .mockResolvedValueOnce('editor') // saved only comments
+                .mockResolvedValueOnce('editor') // no editor installed
+                .mockResolvedValueOnce('clipboard') // clipboard has no text
+                .mockResolvedValueOnce('clipboard') // clipboard cannot be read
+                .mockResolvedValueOnce('editor'); // finally a real structure
+            const read = vi
+                .fn()
+                .mockResolvedValueOnce('  \n')
+                .mockRejectedValueOnce(new Error('No clipboard tool found.'));
+            const { exitCode, prompts, destination } = await run({
+                prompts: { chooseStructureSource },
+                editor: fakeEditor(
+                    '# only a comment',
+                    new EditorUnavailableError('No text editor found.'),
+                    TREE,
+                ),
+                clipboard: { canRead: () => true, read },
+            });
+            expect(exitCode).toBe(0);
+            expect(prompts.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Nothing was entered.'),
+            );
+            expect(prompts.warn).toHaveBeenCalledWith('The clipboard has no text.');
+            expect(prompts.error).toHaveBeenCalledWith('No text editor found.');
+            expect(prompts.error).toHaveBeenCalledWith('No clipboard tool found.');
+            expect(chooseStructureSource).toHaveBeenCalledTimes(5);
+            await expect(fs.stat(path.join(destination, 'app', 'index.ts'))).resolves.toBeTruthy();
+        });
+
+        it('passes an editor that crashes on as an error', async () => {
+            const { exitCode, prompts } = await run({
+                prompts: { chooseStructureSource: vi.fn().mockResolvedValue('editor') },
+                editor: fakeEditor(new Error('The editor exited with code 1.')),
+            });
+            expect(exitCode).toBe(1);
+            expect(prompts.error).toHaveBeenCalledWith('The editor exited with code 1.');
+        });
+
+        it('still reads a structure file, without asking for its format', async () => {
+            const cwd = await createTemporaryDirectory();
+            const inputPath = await createProject(cwd, '└── lib/\n    └── a.ts');
+            const prompts = createPrompts({
+                enterStructurePath: vi.fn().mockResolvedValue(inputPath),
+            });
+            const exitCode = await runCli({
+                fileSystem: new NodeFileSystemAdapter(),
+                clipboard: { write: vi.fn() },
+                prompts,
+                cwd,
+            });
+            expect(exitCode).toBe(0);
+            await expect(
+                fs.stat(path.join(cwd, 'destination', 'lib', 'a.ts')),
+            ).resolves.toBeTruthy();
+        });
     });
 });

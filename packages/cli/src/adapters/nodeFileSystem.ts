@@ -1,8 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import type { Dirent, Stats } from 'node:fs';
 import * as path from 'node:path';
 import {
     FolderFileSystemError,
+    type CreationRollback,
     type DirectoryEntry,
     type EntryMetadata,
     type ExclusiveFileCreation,
@@ -21,7 +23,9 @@ const FILE_SYSTEM_ERROR_CODES: Record<string, FolderFileSystemErrorCode> = {
     ENAMETOOLONG: 'INVALID_PATH',
 };
 
-export class NodeFileSystemAdapter implements FolderStructureFileSystem, ExclusiveFileCreation {
+export class NodeFileSystemAdapter
+    implements FolderStructureFileSystem, ExclusiveFileCreation, CreationRollback
+{
     toFolderPath(value: string): FolderPath {
         try {
             if (typeof value !== 'string' || !value || value.includes('\0')) {
@@ -126,10 +130,32 @@ export class NodeFileSystemAdapter implements FolderStructureFileSystem, Exclusi
         }
 
         if (!writeFailed) {
-            if (closeFailed) {
-                throw this.normalizeError(closeFailure);
+            if (!closeFailed) {
+                return;
             }
-            return;
+
+            const normalizedCloseFailure = this.normalizeError(closeFailure);
+
+            try {
+                await fs.unlink(this.decodePath(folderPath));
+            } catch (cleanupError) {
+                const normalizedCleanupFailure = this.normalizeError(cleanupError);
+
+                if (normalizedCleanupFailure.code !== 'NOT_FOUND') {
+                    throw new FolderFileSystemError(
+                        'IO_ERROR',
+                        `File creation completed, but closing the file failed and the incomplete file could not be removed: "${this.decodePath(folderPath)}".`,
+                        {
+                            cause: new AggregateError([
+                                normalizedCloseFailure,
+                                normalizedCleanupFailure,
+                            ]),
+                        },
+                    );
+                }
+            }
+
+            throw normalizedCloseFailure;
         }
 
         const normalizedWriteFailure = this.normalizeError(writeFailure);
@@ -164,6 +190,112 @@ export class NodeFileSystemAdapter implements FolderStructureFileSystem, Exclusi
         }
 
         throw normalizedWriteFailure;
+    }
+
+    async replaceWithEmptyFile(folderPath: FolderPath): Promise<FolderPath> {
+        const target = this.decodePath(folderPath);
+        const stats = await this.withNormalizedError(() => fs.lstat(target));
+
+        if (!stats.isFile()) {
+            throw new FolderFileSystemError('INVALID_PATH', 'Only a regular file can be replaced.');
+        }
+
+        const backup = path.join(
+            path.dirname(target),
+            `.${path.basename(target)}.${randomBytes(6).toString('hex')}.folder-structure-pro`,
+        );
+
+        // Move the original aside. This is an atomic rename within the same directory.
+        await this.withNormalizedError(() => fs.rename(target, backup));
+
+        let replacementCreated = false;
+
+        try {
+            const handle = await this.withNormalizedError(() =>
+                fs.open(target, 'wx', stats.mode & 0o7777),
+            );
+
+            replacementCreated = true;
+            await handle.close();
+        } catch (operationError) {
+            const normalizedOperationError = this.normalizeError(operationError);
+            const additionalFailures: Error[] = [];
+
+            // Remove only the replacement file created by this operation.
+            if (replacementCreated) {
+                try {
+                    await fs.unlink(target);
+                } catch (cleanupError) {
+                    const normalizedCleanupError = this.normalizeError(cleanupError);
+
+                    if (normalizedCleanupError.code !== 'NOT_FOUND') {
+                        additionalFailures.push(normalizedCleanupError);
+                    }
+                }
+            }
+
+            let restored = false;
+
+            try {
+                // link() fails if the target already exists; unlike rename(), it
+                // will not overwrite a file created by another process.
+                await fs.link(backup, target);
+                restored = true;
+            } catch (restoreError) {
+                additionalFailures.push(this.normalizeError(restoreError));
+            }
+
+            if (restored) {
+                try {
+                    await fs.unlink(backup);
+                } catch (cleanupError) {
+                    additionalFailures.push(this.normalizeError(cleanupError));
+                }
+            }
+
+            if (additionalFailures.length > 0) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    restored
+                        ? `Replacing the file failed. The original was restored, but backup cleanup also failed. Check the backup at: "${backup}".`
+                        : `Replacing the file failed, and automatic restoration also failed. The original backup has been preserved at: "${backup}". Restore it manually if needed.`,
+                    {
+                        cause: new AggregateError([
+                            normalizedOperationError,
+                            ...additionalFailures,
+                        ]),
+                    },
+                );
+            }
+
+            throw normalizedOperationError;
+        }
+
+        return backup as FolderPath;
+    }
+
+    async restoreFile(backup: FolderPath, folderPath: FolderPath): Promise<void> {
+        const target = this.decodePath(folderPath);
+        await this.withNormalizedError(() => fs.rm(target, { force: true }));
+        await this.withNormalizedError(() => fs.rename(this.decodePath(backup), target));
+    }
+
+    async removeFile(folderPath: FolderPath): Promise<void> {
+        const target = this.decodePath(folderPath);
+        const stats = await this.withNormalizedError(() => fs.lstat(target));
+        if (!stats.isFile()) {
+            throw new FolderFileSystemError('INVALID_PATH', 'Only a regular file can be removed.');
+        }
+        await this.withNormalizedError(() => fs.unlink(target));
+    }
+
+    async discardBackup(backup: FolderPath): Promise<void> {
+        await this.removeFile(backup);
+    }
+
+    async removeEmptyDirectory(folderPath: FolderPath): Promise<void> {
+        // rmdir fails on a directory that is not empty, so nothing inside can be lost.
+        await this.withNormalizedError(() => fs.rmdir(this.decodePath(folderPath)));
     }
 
     joinChild(parent: FolderPath, name: string): FolderPath {

@@ -99,3 +99,29 @@ export interface FolderStructureFileSystem {
 export interface ExclusiveFileCreation {
     createFileExclusive(path: FolderPath, content: string): Promise<void>;
 }
+
+/**
+ * What structure creation needs to undo its own work when a step fails, so that either the
+ * whole structure is created or nothing is changed. Every operation only touches entries the
+ * current run created or moved; nothing is ever deleted recursively.
+ */
+export interface CreationRollback {
+    /**
+     * Moves an existing regular file aside to a new, unused name in the same directory and
+     * puts an empty file in its place, keeping the file's permissions. Returns where the
+     * original now is. If it fails, it must leave the file as it was and no copy behind,
+     * because a failed step is not recorded for undoing.
+     */
+    replaceWithEmptyFile(path: FolderPath): Promise<FolderPath>;
+    /** Puts a file moved aside by replaceWithEmptyFile back, removing what is at `path`. */
+    restoreFile(backup: FolderPath, path: FolderPath): Promise<void>;
+    /** Removes a regular file. Refuses anything that is not a regular file. */
+    removeFile(path: FolderPath): Promise<void>;
+    /** Removes a directory only when it is empty. */
+    removeEmptyDirectory(path: FolderPath): Promise<void>;
+    /**
+     * Gets rid of a file moved aside by replaceWithEmptyFile, after a successful run.
+     * An adapter may keep it recoverable, for example by moving it to the trash.
+     */
+    discardBackup(backup: FolderPath): Promise<void>;
+}

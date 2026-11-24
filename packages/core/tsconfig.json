@@ -3,18 +3,15 @@
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
         "target": "ES2022",
-        "lib": [
-            "ES2022"
-        ],
+        "lib": ["ES2022"],
         "strict": true,
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
         "rootDir": "src",
         "outDir": "dist",
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "types": []
     },
-    "include": [
-        "src"
-    ]
+    "include": ["src"]
 }

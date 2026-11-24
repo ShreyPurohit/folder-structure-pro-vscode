@@ -3,8 +3,7 @@ import {
     executeStructureCreation,
     formatJson,
     formatPlainText,
-    parseJsonWithComments,
-    parsePlainTextToStructure,
+    parseStructureInput,
     planStructureCreation,
     StructureCreationExecutionError,
     traverseFolderStructure,
@@ -25,10 +24,20 @@ import {
     systemClipboard,
     type ClipboardAdapter,
 } from './adapters/clipboard.js';
+import { EditorUnavailableError, systemEditor, type EditorAdapter } from './adapters/editor.js';
+import { isRemoteSession } from './adapters/nativeClipboard.js';
 import { exportStructure } from './adapters/nodeOutput.js';
 import { NodeFileSystemAdapter } from './adapters/nodeFileSystem.js';
+import { readStdinText } from './adapters/stdin.js';
 import { CANCELLED, createCliPrompts, type CliPrompts, type PromptResult } from './presentation.js';
 import { formatSuccessFooter } from './success-footer.js';
+import {
+    buildEditorText,
+    formatStructureProblem,
+    parseStructureOrThrow,
+    type InvalidStructure,
+    stripEditorComments,
+} from './structure-input.js';
 
 export type CliWriter = (text: string) => void | Promise<void>;
 
@@ -37,10 +46,17 @@ export interface CliDependencies {
     clipboard: ClipboardAdapter;
     prompts: CliPrompts;
     cwd: string;
+    /** Defaults to process.env; used to detect SSH sessions. */
+    env?: NodeJS.ProcessEnv;
+    /** Opens the user's text editor to paste a structure. Defaults to the system editor. */
+    editor?: EditorAdapter;
 }
 
 export type ExecutableDependencies = Omit<CliDependencies, 'prompts'> &
-    Partial<Pick<CliDependencies, 'prompts'>>;
+    Partial<Pick<CliDependencies, 'prompts'>> & {
+        /** Reads standard input for `create -`. Defaults to process.stdin. */
+        readStdin?: () => Promise<string>;
+    };
 
 export interface RunExecutableOptions {
     stdinIsTTY?: boolean;
@@ -128,7 +144,7 @@ async function generateStructure(
     return { content, ...summary };
 }
 
-export function createBoundedPreview(content: string, maxLines = 12, maxCharacters = 1200): string {
+function createBoundedPreview(content: string, maxLines = 12, maxCharacters = 1200): string {
     if (maxLines < 1 || maxCharacters < 1) {
         throw new RangeError('Preview limits must be positive.');
     }
@@ -178,6 +194,9 @@ function countLabel(count: number, singular: string): string {
 }
 
 function formatExecutionError(error: StructureCreationExecutionError): string {
+    if (error.cause instanceof Error && error.cause.name === 'AbortError') {
+        return error.message.replace(/^Creation stopped at "[^"]*"\./, 'Creation was interrupted.');
+    }
     const cause =
         error.cause instanceof FolderFileSystemError
             ? `${error.cause.message} (${error.cause.code})`
@@ -187,12 +206,11 @@ function formatExecutionError(error: StructureCreationExecutionError): string {
     return `${error.message}\nCause: ${cause}`;
 }
 
-async function readStructureFile(
+async function readStructureText(
     fileSystem: NodeFileSystemAdapter,
     cwd: string,
     requestedPath: string,
-    format: 'text' | 'json',
-): Promise<unknown> {
+): Promise<string> {
     const structureFilePath = fileSystem.toFolderPath(path.resolve(cwd, requestedPath.trim()));
     const structureFileMetadata = await fileSystem.lstat(structureFilePath);
     if (
@@ -204,18 +222,7 @@ async function readStructureFile(
             'The structure input must be a regular, non-symbolic-link file.',
         );
     }
-
-    const content = await fileSystem.readText(structureFilePath);
-    if (format === 'text') {
-        const parsed = parsePlainTextToStructure(content);
-        if (parsed.invalidLines.length > 0) {
-            throw new Error(
-                `Invalid plain-text structure lines: ${parsed.invalidLines.join(', ')}. No files or directories were created.`,
-            );
-        }
-        return parsed.structure;
-    }
-    return parseJsonWithComments(content);
+    return fileSystem.readText(structureFilePath);
 }
 
 /** Sets a multi-line message apart with a blank line before and after; one-liners are unchanged. */
@@ -233,10 +240,32 @@ function formatCommandError(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.';
 }
 
+/**
+ * Runs the creation so that Ctrl+C stops it between steps and undoes it, instead of ending
+ * the process halfway through.
+ */
+async function createAllOrNothing(
+    ...[fileSystem, plan, conflictResolution]: Parameters<typeof executeStructureCreation>
+): ReturnType<typeof executeStructureCreation> {
+    const controller = new AbortController();
+    const onInterrupt = (): void => controller.abort();
+    process.once('SIGINT', onInterrupt);
+    try {
+        return await executeStructureCreation(fileSystem, plan, conflictResolution, {
+            signal: controller.signal,
+        });
+    } finally {
+        process.off('SIGINT', onInterrupt);
+    }
+}
+
 function formatCreationResult(
     result: Awaited<ReturnType<typeof executeStructureCreation>>,
 ): string {
-    return `Created ${countLabel(result.directoriesCreated, 'directory')} and ${countLabel(result.filesCreated, 'file')}; reused ${countLabel(result.directoriesReused, 'directory')}, replaced ${countLabel(result.filesReplaced, 'file')}, and skipped ${countLabel(result.filesSkipped, 'file')}.`;
+    const summary = `Created ${countLabel(result.directoriesCreated, 'directory')} and ${countLabel(result.filesCreated, 'file')}; reused ${countLabel(result.directoriesReused, 'directory')}, replaced ${countLabel(result.filesReplaced, 'file')}, and skipped ${countLabel(result.filesSkipped, 'file')}.`;
+    return result.leftoverBackups.length === 0
+        ? summary
+        : `${summary}\nCopies of the replaced files could not be removed: ${result.leftoverBackups.join(', ')}`;
 }
 
 async function runDirectCommand(
@@ -283,12 +312,11 @@ async function runDirectCommand(
             return 0;
         }
 
-        const structure = await readStructureFile(
-            fileSystem,
-            cwd,
-            command.structureFile,
-            command.format,
-        );
+        const structureText =
+            command.structureFile === '-'
+                ? await (dependencies.readStdin ?? readStdinText)()
+                : await readStructureText(fileSystem, cwd, command.structureFile);
+        const structure = parseStructureOrThrow(structureText, command.format);
         const destination = fileSystem.toFolderPath(path.resolve(cwd, command.destination));
         const plan = await planStructureCreation(fileSystem, destination, structure);
         if (command.onConflict === 'fail' && plan.conflicts.length > 0) {
@@ -297,7 +325,7 @@ async function runDirectCommand(
                 `${plan.conflicts.length} existing file conflict(s) found. No changes were made; use --on-conflict skip or --on-conflict replace.`,
             );
         }
-        const result = await executeStructureCreation(
+        const result = await createAllOrNothing(
             fileSystem,
             plan,
             command.onConflict === 'replace' ? 'replace' : 'skip',
@@ -355,9 +383,29 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
         const summaryText = `${generated.entries} entries (${generated.directories} directories); ${generated.content.length} characters`;
         prompts.showPreview(createBoundedPreview(generated.content), summaryText);
 
-        const destination = await answer(prompts.chooseDestination());
+        // Ask before the menu, so a copy that cannot work is not offered at all.
+        const copyBlocker = await clipboard.unavailableReason?.();
+        if (copyBlocker !== undefined) {
+            prompts.warn(copyBlocker);
+        }
+        const destination = await answer(
+            prompts.chooseDestination({
+                offerPrint:
+                    copyBlocker !== undefined || isRemoteSession(dependencies.env ?? process.env),
+                offerClipboard: copyBlocker === undefined,
+            }),
+        );
 
         const entriesLabel = `${generated.entries} ${generated.entries === 1 ? 'entry' : 'entries'}`;
+        const printStructure = (): number => {
+            prompts.printContent(generated.content);
+            prompts.outro(`Printed ${entriesLabel}.${formatSuccessFooter()}`);
+            return 0;
+        };
+
+        if (destination === 'print') {
+            return printStructure();
+        }
 
         if (destination === 'clipboard') {
             try {
@@ -384,9 +432,7 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
                 return 0;
             }
             if (fallback === 'print') {
-                prompts.printContent(generated.content);
-                prompts.outro(`Printed ${entriesLabel}.${formatSuccessFooter()}`);
-                return 0;
+                return printStructure();
             }
         }
 
@@ -429,18 +475,83 @@ export async function runCli(dependencies: CliDependencies): Promise<number> {
     }
 }
 
+/**
+ * Gets a valid structure from the clipboard, the user's editor, or a file. Anything that
+ * cannot be used is explained and the user can fix it or choose another source.
+ */
+async function collectStructure(dependencies: CliDependencies): Promise<FolderStructure> {
+    const { fileSystem, clipboard, prompts, cwd } = dependencies;
+    const editor = dependencies.editor ?? systemEditor;
+
+    // Returns the text the user saved, or undefined when there is nothing to use.
+    const editText = async (
+        structure: string,
+        problem?: InvalidStructure,
+    ): Promise<string | undefined> => {
+        const instructions = editor.describe();
+        try {
+            const saved = await editor.edit(buildEditorText(structure, { instructions, problem }));
+            const text = stripEditorComments(saved);
+            if (text.trim() === '') {
+                prompts.warn(
+                    'Nothing was entered. If your editor opens in a separate window, set EDITOR to a command that waits for it to close, for example: EDITOR="code --wait"',
+                );
+                return undefined;
+            }
+            return text;
+        } catch (error) {
+            if (error instanceof EditorUnavailableError) {
+                prompts.error(error.message);
+                return undefined;
+            }
+            throw error;
+        }
+    };
+
+    const readClipboardText = async (): Promise<string | undefined> => {
+        try {
+            const text = (await clipboard.read?.()) ?? '';
+            if (text.trim() === '') {
+                prompts.warn('The clipboard has no text.');
+                return undefined;
+            }
+            return text;
+        } catch (error) {
+            prompts.error(
+                error instanceof Error ? error.message : 'The clipboard could not be read.',
+            );
+            return undefined;
+        }
+    };
+
+    for (;;) {
+        const source = await answer(
+            prompts.chooseStructureSource({ clipboard: clipboard.canRead?.() === true }),
+        );
+        let text: string | undefined;
+        if (source === 'file') {
+            const filePath = await answer(prompts.enterStructurePath(path.join(cwd, path.sep)));
+            text = await readStructureText(fileSystem, cwd, filePath);
+        } else {
+            text = source === 'clipboard' ? await readClipboardText() : await editText('');
+        }
+        while (text !== undefined) {
+            const result = parseStructureInput(text);
+            if (result.ok) {
+                return result.structure;
+            }
+            prompts.error(formatStructureProblem(result));
+            if ((await answer(prompts.chooseInvalidStructureAction())) === 'cancel') {
+                throw new PromptCancelled();
+            }
+            text = await editText(text, result);
+        }
+    }
+}
+
 async function runStructureCreation(dependencies: CliDependencies): Promise<number> {
     const { fileSystem, prompts, cwd } = dependencies;
-    const format = await answer(prompts.chooseStructureFormat());
-
-    const structurePathResult = await answer(
-        prompts.enterStructurePath(
-            path.join(cwd, `folder-structure.${format === 'text' ? 'txt' : 'json'}`),
-        ),
-    );
-
-    const structure = await readStructureFile(fileSystem, cwd, structurePathResult, format);
-
+    const structure = await collectStructure(dependencies);
     const destinationResult = await answer(prompts.enterDestinationDirectory(cwd));
     const destination = fileSystem.toFolderPath(path.resolve(cwd, destinationResult.trim() || cwd));
     const plan = await planStructureCreation(fileSystem, destination, structure);
@@ -467,7 +578,7 @@ async function runStructureCreation(dependencies: CliDependencies): Promise<numb
         return 0;
     }
 
-    const result = await executeStructureCreation(fileSystem, plan, conflictResolution);
+    const result = await createAllOrNothing(fileSystem, plan, conflictResolution);
     prompts.outro(`${formatCreationResult(result)}${formatSuccessFooter()}`);
     return 0;
 }
