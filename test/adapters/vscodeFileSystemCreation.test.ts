@@ -103,28 +103,60 @@ describe('VSCodeFileSystemAdapter creation and undo', () => {
         expect([...fs.nodes.keys()].sort()).toEqual(['/', '/w', '/w/a.txt']);
     });
 
-    it('reports the original failure even when cleaning up also fails', async () => {
+    it('reports both the original failure and cleanup failure', async () => {
         installMemoryWorkspaceFs({ '/w/a.txt': 'old' });
+
         const denied = () => Object.assign(new Error('denied'), { code: 'NoPermissions' });
+
+        // createFileExclusive: rename fails, then temporary-file cleanup fails.
         mockFsRename.mockImplementationOnce(async () => {
             throw denied();
         });
+
         mockFsDelete.mockImplementationOnce(async () => {
             throw new Error('cleanup failed too');
         });
-        await expect(adapter.createFileExclusive(at('/w/b.txt'), '')).rejects.toMatchObject({
-            code: 'PERMISSION_DENIED',
+
+        const creationError = await adapter
+            .createFileExclusive(at('/w/b.txt'), '')
+            .catch((error: unknown) => error);
+
+        expect(creationError).toMatchObject({
+            code: 'IO_ERROR',
+            message: expect.stringContaining('temporary file could not be cleaned up'),
         });
 
+        const creationCause = (creationError as { cause?: unknown }).cause;
+
+        expect(creationCause).toBeInstanceOf(AggregateError);
+        expect(
+            (creationCause as AggregateError).errors.map((error) => (error as Error).message),
+        ).toEqual(['denied', 'cleanup failed too']);
+
+        // replaceWithEmptyFile: writing fails, then restoring the backup fails.
         mockFsWriteFile.mockImplementationOnce(async () => {
             throw denied();
         });
+
         mockFsRename.mockImplementationOnce(async () => {
             throw new Error('restore failed too');
         });
-        await expect(adapter.replaceWithEmptyFile(at('/w/a.txt'))).rejects.toMatchObject({
-            code: 'PERMISSION_DENIED',
+
+        const replacementError = await adapter
+            .replaceWithEmptyFile(at('/w/a.txt'))
+            .catch((error: unknown) => error);
+
+        expect(replacementError).toMatchObject({
+            code: 'IO_ERROR',
+            message: expect.stringContaining('automatic restoration also failed'),
         });
+
+        const replacementCause = (replacementError as { cause?: unknown }).cause;
+
+        expect(replacementCause).toBeInstanceOf(AggregateError);
+        expect(
+            (replacementCause as AggregateError).errors.map((error) => (error as Error).message),
+        ).toEqual(['denied', 'restore failed too']);
     });
 
     it('runs the shared core all or nothing through the VS Code file system', async () => {

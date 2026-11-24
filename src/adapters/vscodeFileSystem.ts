@@ -117,20 +117,47 @@ export class VSCodeFileSystemAdapter
      * workspace.fs.writeFile cannot refuse to overwrite, so the empty file is written under a
      * random name next to the target and then renamed without overwriting.
      */
+
     async createFileExclusive(path: FolderPath, content: string): Promise<void> {
         const target = this.deserializePath(path);
         const temporary = this.siblingWithRandomName(target, 'new');
-        await this.withUri(path, () =>
-            vscode.workspace.fs.writeFile(temporary, new TextEncoder().encode(content)),
-        );
+
         try {
+            await this.withUri(path, () =>
+                vscode.workspace.fs.writeFile(temporary, new TextEncoder().encode(content)),
+            );
+
             await this.withUri(path, () =>
                 vscode.workspace.fs.rename(temporary, target, { overwrite: false }),
             );
         } catch (error) {
-            await Promise.resolve(
-                vscode.workspace.fs.delete(temporary, { recursive: false, useTrash: false }),
-            ).catch(() => undefined);
+            let cleanupError: FolderFileSystemError | undefined;
+
+            try {
+                await this.withUri(path, () =>
+                    vscode.workspace.fs.delete(temporary, {
+                        recursive: false,
+                        useTrash: false,
+                    }),
+                );
+            } catch (caught) {
+                const normalized = this.normalizeError(caught);
+
+                if (normalized.code !== 'NOT_FOUND') {
+                    cleanupError = normalized;
+                }
+            }
+
+            if (cleanupError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `File creation failed, and its temporary file could not be cleaned up: "${temporary.toString()}".`,
+                    {
+                        cause: new AggregateError([error, cleanupError]),
+                    },
+                );
+            }
+
             throw error;
         }
     }
@@ -138,20 +165,70 @@ export class VSCodeFileSystemAdapter
     /** Copies the original aside, then empties it in place so its permissions are kept. */
     async replaceWithEmptyFile(path: FolderPath): Promise<FolderPath> {
         const target = this.deserializePath(path);
+
         await this.assertRegularFile(path, 'Only a regular file can be replaced.');
+
         const backup = this.siblingWithRandomName(target, 'backup');
-        await this.withUri(path, () =>
-            vscode.workspace.fs.copy(target, backup, { overwrite: false }),
-        );
+
+        // Create a backup before modifying the original file.
+        try {
+            await this.withUri(path, () =>
+                vscode.workspace.fs.copy(target, backup, { overwrite: false }),
+            );
+        } catch (copyError) {
+            let cleanupError: FolderFileSystemError | undefined;
+
+            // A provider might create a partial backup before reporting failure.
+            try {
+                await this.withUri(path, () =>
+                    vscode.workspace.fs.delete(backup, {
+                        recursive: false,
+                        useTrash: false,
+                    }),
+                );
+            } catch (caught) {
+                const normalized = this.normalizeError(caught);
+
+                if (normalized.code !== 'NOT_FOUND') {
+                    cleanupError = normalized;
+                }
+            }
+
+            if (cleanupError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `Backing up the original file failed, and the partial backup could not be cleaned up: "${backup.toString()}".`,
+                    {
+                        cause: new AggregateError([copyError, cleanupError]),
+                    },
+                );
+            }
+
+            throw copyError;
+        }
+
+        // Empty the original only after the backup has been created.
         try {
             await this.writeText(path, '');
-        } catch (error) {
-            // A failed write may have touched the file: put the original back from its copy.
-            await Promise.resolve(
-                vscode.workspace.fs.rename(backup, target, { overwrite: true }),
-            ).catch(() => undefined);
-            throw error;
+        } catch (writeError) {
+            try {
+                // The failed write may have modified the original.
+                await this.withUri(path, (uri) =>
+                    vscode.workspace.fs.rename(backup, uri, { overwrite: true }),
+                );
+            } catch (restoreError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `Replacing the file failed, and automatic restoration also failed. The original backup has been preserved at: "${backup.toString()}". Restore it manually if needed.`,
+                    {
+                        cause: new AggregateError([writeError, restoreError]),
+                    },
+                );
+            }
+
+            throw writeError;
         }
+
         return this.serializeUri(backup);
     }
 

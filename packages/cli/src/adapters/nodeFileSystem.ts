@@ -173,23 +173,82 @@ export class NodeFileSystemAdapter
     async replaceWithEmptyFile(folderPath: FolderPath): Promise<FolderPath> {
         const target = this.decodePath(folderPath);
         const stats = await this.withNormalizedError(() => fs.lstat(target));
+
         if (!stats.isFile()) {
             throw new FolderFileSystemError('INVALID_PATH', 'Only a regular file can be replaced.');
         }
-        // A random hidden name next to the original: renaming within a directory is atomic
-        // and instant, whatever the file's size.
+
         const backup = path.join(
             path.dirname(target),
             `.${path.basename(target)}.${randomBytes(6).toString('hex')}.folder-structure-pro`,
         );
+
+        // Move the original aside. This is an atomic rename within the same directory.
         await this.withNormalizedError(() => fs.rename(target, backup));
+
+        let replacementCreated = false;
+
         try {
-            const handle = await fs.open(target, 'wx', stats.mode & 0o7777);
+            const handle = await this.withNormalizedError(() =>
+                fs.open(target, 'wx', stats.mode & 0o7777),
+            );
+
+            replacementCreated = true;
             await handle.close();
-        } catch (error) {
-            await fs.rename(backup, target).catch(() => undefined);
-            throw this.normalizeError(error);
+        } catch (operationError) {
+            const normalizedOperationError = this.normalizeError(operationError);
+            const additionalFailures: Error[] = [];
+
+            // Remove only the replacement file created by this operation.
+            if (replacementCreated) {
+                try {
+                    await fs.unlink(target);
+                } catch (cleanupError) {
+                    const normalizedCleanupError = this.normalizeError(cleanupError);
+
+                    if (normalizedCleanupError.code !== 'NOT_FOUND') {
+                        additionalFailures.push(normalizedCleanupError);
+                    }
+                }
+            }
+
+            let restored = false;
+
+            try {
+                // link() fails if the target already exists; unlike rename(), it
+                // will not overwrite a file created by another process.
+                await fs.link(backup, target);
+                restored = true;
+            } catch (restoreError) {
+                additionalFailures.push(this.normalizeError(restoreError));
+            }
+
+            if (restored) {
+                try {
+                    await fs.unlink(backup);
+                } catch (cleanupError) {
+                    additionalFailures.push(this.normalizeError(cleanupError));
+                }
+            }
+
+            if (additionalFailures.length > 0) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    restored
+                        ? `Replacing the file failed. The original was restored, but backup cleanup also failed. Check the backup at: "${backup}".`
+                        : `Replacing the file failed, and automatic restoration also failed. The original backup has been preserved at: "${backup}". Restore it manually if needed.`,
+                    {
+                        cause: new AggregateError([
+                            normalizedOperationError,
+                            ...additionalFailures,
+                        ]),
+                    },
+                );
+            }
+
+            throw normalizedOperationError;
         }
+
         return backup as FolderPath;
     }
 
