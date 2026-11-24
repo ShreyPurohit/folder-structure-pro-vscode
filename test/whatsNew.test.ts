@@ -161,7 +161,7 @@ describe("What's New page", () => {
         const nonce = /script-src 'nonce-([^']+)'/.exec(html)?.[1];
         expect(nonce).toBeTruthy();
         expect(html).toContain(`<script nonce="${nonce}">`);
-        expect(html).toContain('img-src vscode-resource:;');
+        expect(html).toContain('img-src vscode-resource: https://raw.githubusercontent.com;');
         expect(html).toContain("default-src 'none'");
         const script = /<script nonce="[^"]+">([\s\S]*?)<\/script>/.exec(html)![1];
         expect(() => new Function(script)).not.toThrow();
