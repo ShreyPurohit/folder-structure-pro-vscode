@@ -95,7 +95,7 @@ The destination directory for `create` must already exist.
 
 The CLI supports both guided interactive operations and direct commands.
 
-![CLI command overview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/packages/cli/assets/cli-overview.svg)
+![CLI command overview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-overview.svg)
 
 ## Commands
 
@@ -182,7 +182,7 @@ For editor input, the CLI uses `$VISUAL`, then `$EDITOR`, then the system defaul
 
 After receiving the input, the CLI validates it and displays a preview. If it finds problems, it shows the relevant line numbers and text and can reopen the input for correction.
 
-![CLI create flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/packages/cli/assets/cli-create-flow.svg)
+![CLI create flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-create-flow.svg)
 
 **Interactive usage**
 
@@ -232,7 +232,7 @@ Direct creation requires `--yes`. Replacing files requires both `--yes` and `--o
 
 Folder Structure Pro uses the clipboard tools available on your system. Over SSH, it can also send clipboard requests through supported terminals using OSC 52.
 
-![CLI clipboard flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/packages/cli/assets/cli-copy-flow.svg)
+![CLI clipboard flow](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/cli-copy-flow.svg)
 
 ### Platform support
 
