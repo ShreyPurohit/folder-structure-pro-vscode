@@ -6,7 +6,13 @@ import {
     StructureCreationExecutionError,
 } from '@folder-structure-pro/core';
 import { VSCodeFileSystemAdapter } from '../../src/adapters/vscodeFileSystem';
-import { mockFsDelete, mockFsRename, mockFsWriteFile, resetVscodeMocks } from '../__mocks__/vscode';
+import {
+    mockFsCopy,
+    mockFsDelete,
+    mockFsRename,
+    mockFsWriteFile,
+    resetVscodeMocks,
+} from '../__mocks__/vscode';
 import { installMemoryWorkspaceFs } from '../helpers/memoryWorkspaceFs';
 
 const adapter = new VSCodeFileSystemAdapter();
@@ -209,5 +215,46 @@ describe('VSCodeFileSystemAdapter creation and undo', () => {
         expect(
             [...fs.nodes.keys()].filter((path) => path.includes('folder-structure-pro')),
         ).toEqual([]);
+    });
+
+    it('cleans up a partial backup when copying the original fails', async () => {
+        installMemoryWorkspaceFs({ '/w/a.txt': 'old' });
+
+        const copyError = Object.assign(new Error('copy failed'), {
+            code: 'NoPermissions',
+        });
+
+        mockFsCopy.mockImplementationOnce(async () => {
+            throw copyError;
+        });
+
+        await expect(adapter.replaceWithEmptyFile(at('/w/a.txt'))).rejects.toMatchObject({
+            code: 'PERMISSION_DENIED',
+            message: 'copy failed',
+        });
+
+        expect(mockFsDelete).toHaveBeenCalledWith(expect.anything(), {
+            recursive: false,
+            useTrash: false,
+        });
+    });
+
+    it('reports backup-copy and partial-backup cleanup failures', async () => {
+        installMemoryWorkspaceFs({ '/w/a.txt': 'old' });
+
+        mockFsCopy.mockRejectedValueOnce(new Error('copy failed'));
+        mockFsDelete.mockRejectedValueOnce(new Error('cleanup failed'));
+
+        const error = await adapter
+            .replaceWithEmptyFile(at('/w/a.txt'))
+            .catch((caught: unknown) => caught);
+
+        expect(error).toMatchObject({
+            code: 'IO_ERROR',
+            message: expect.stringContaining('partial backup could not be cleaned up'),
+        });
+
+        expect((error as { cause?: unknown }).cause).toBeInstanceOf(AggregateError);
+        expect((error as { cause: AggregateError }).cause.errors).toHaveLength(2);
     });
 });

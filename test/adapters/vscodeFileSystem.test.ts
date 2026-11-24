@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { FolderFileSystemError, type FolderPath } from '@folder-structure-pro/core';
 import { VSCodeFileSystemAdapter } from '../../src/adapters/vscodeFileSystem';
 import {
+    mockFsCopy,
     mockFsCreateDirectory,
     mockFsReadDirectory,
     mockFsReadFile,
@@ -78,6 +79,14 @@ describe('VSCodeFileSystemAdapter', () => {
         await expect(
             adapter.exists(adapter.toFolderPath(vscode.Uri.file('/restricted'))),
         ).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+    });
+
+    it('returns true when the filesystem entry exists', async () => {
+        mockFsStat.mockResolvedValueOnce({ type: vscode.FileType.File });
+
+        await expect(
+            adapter.exists(adapter.toFolderPath(vscode.Uri.file('/workspace/file.txt'))),
+        ).resolves.toBe(true);
     });
 
     it('reads and writes text through VS Code filesystem APIs', async () => {
@@ -175,5 +184,56 @@ describe('VSCodeFileSystemAdapter', () => {
             code: 'IO_ERROR',
             cause,
         });
+    });
+
+    it('returns parent segments for relative paths pointing upwards', () => {
+        const base = adapter.toFolderPath(vscode.Uri.file('/workspace/project/src'));
+        const target = adapter.toFolderPath(vscode.Uri.file('/workspace/project'));
+
+        expect(adapter.relative(base, target)).toBe('..');
+    });
+
+    it('rejects URIs with invalid schemes', () => {
+        const invalidUri = new vscode.Uri('1invalid', '', '/workspace', '', '');
+
+        expect(() => adapter.toFolderPath(invalidUri)).toThrow(
+            expect.objectContaining({ code: 'INVALID_PATH' }),
+        );
+    });
+
+    it('rejects non-canonical serialized URIs', async () => {
+        const nonCanonicalPath =
+            `vscode-uri:v1:${encodeURIComponent('file:/workspace')}` as FolderPath;
+
+        await expect(adapter.lstat(nonCanonicalPath)).rejects.toMatchObject({
+            code: 'INVALID_PATH',
+            message: 'Malformed encoded folder path.',
+        });
+    });
+
+    it('preserves filesystem errors thrown while joining a child path', () => {
+        const parent = adapter.toFolderPath(vscode.Uri.file('/workspace'));
+        const error = new FolderFileSystemError('INVALID_PATH', 'Invalid URI');
+
+        vi.spyOn(vscode.Uri, 'joinPath').mockImplementation(() => {
+            throw error;
+        });
+
+        expect(() => adapter.joinChild(parent, 'child')).toThrow(error);
+    });
+
+    it('normalizes unexpected errors thrown while joining a child path', () => {
+        const parent = adapter.toFolderPath(vscode.Uri.file('/workspace'));
+
+        vi.spyOn(vscode.Uri, 'joinPath').mockImplementation(() => {
+            throw new Error('unexpected join failure');
+        });
+
+        expect(() => adapter.joinChild(parent, 'child')).toThrow(
+            expect.objectContaining({
+                code: 'INVALID_PATH',
+                message: 'Unable to join child path.',
+            }),
+        );
     });
 });
