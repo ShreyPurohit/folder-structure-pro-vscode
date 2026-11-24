@@ -130,10 +130,32 @@ export class NodeFileSystemAdapter
         }
 
         if (!writeFailed) {
-            if (closeFailed) {
-                throw this.normalizeError(closeFailure);
+            if (!closeFailed) {
+                return;
             }
-            return;
+
+            const normalizedCloseFailure = this.normalizeError(closeFailure);
+
+            try {
+                await fs.unlink(this.decodePath(folderPath));
+            } catch (cleanupError) {
+                const normalizedCleanupFailure = this.normalizeError(cleanupError);
+
+                if (normalizedCleanupFailure.code !== 'NOT_FOUND') {
+                    throw new FolderFileSystemError(
+                        'IO_ERROR',
+                        `File creation completed, but closing the file failed and the incomplete file could not be removed: "${this.decodePath(folderPath)}".`,
+                        {
+                            cause: new AggregateError([
+                                normalizedCloseFailure,
+                                normalizedCleanupFailure,
+                            ]),
+                        },
+                    );
+                }
+            }
+
+            throw normalizedCloseFailure;
         }
 
         const normalizedWriteFailure = this.normalizeError(writeFailure);
