@@ -22,8 +22,6 @@ pnpm-lock.yaml
 pnpm-workspace.yaml
 assets/*
 !assets/icon.png
-assets/whats-new/*
-!assets/whats-new/*.png
 .prettierignore
 .kiro
 docs/**

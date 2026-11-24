@@ -24,7 +24,7 @@ Use the interactive menu or run commands directly from your terminal.
 - **Works over SSH** – Copy from a remote server straight to your own clipboard, or print the structure when your terminal can't.
 - **No runtime dependencies** – Nothing extra is installed alongside it.
 
-![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/Folder-Structure-Pro-CLI.png)
+![Folder Structure Pro CLI interactive preview](https://raw.githubusercontent.com/ShreyPurohit/folder-structure-pro-vscode/main/assets/folder-structure-pro-cli.png)
 
 ## Table of Contents
 

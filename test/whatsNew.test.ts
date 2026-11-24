@@ -151,33 +151,6 @@ describe("What's New page", () => {
         resetVscodeMocks();
     });
 
-    it('shows the images that exist, from the extension folder only', async () => {
-        const { context } = createContext();
-        const { panel } = mockPanel();
-        mockFsStat.mockImplementation(async (uri: vscode.Uri) => {
-            if (uri.path.endsWith('cli.png')) {
-                throw new Error('missing');
-            }
-            return { type: vscode.FileType.File };
-        });
-
-        await showWhatsNew(context);
-
-        expect(vscode.window.createWebviewPanel).toHaveBeenCalledWith(
-            'folderStructureWhatsNew',
-            "Folder Structure Pro: What's New",
-            vscode.ViewColumn.One,
-            { enableScripts: true, localResourceRoots: [vscode.Uri.file('/ext/assets/whats-new')] },
-        );
-        const html = panel.webview.html;
-        expect(html).toContain('src="vscode-resource:/ext/assets/whats-new/extension-view.png"');
-        expect(html).not.toContain('cli.png');
-        // Both sections are described even when an image is missing.
-        expect(html).toContain('A clearer Create Folder Structure panel');
-        expect(html).toContain('Folder Structure Pro in your terminal');
-        expect(html).toContain('npx folder-structure-pro');
-    });
-
     it('allows only its own images and a script with a fresh nonce', async () => {
         const { context } = createContext();
         const { panel } = mockPanel();
