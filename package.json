@@ -88,7 +88,7 @@
         },
         {
           "command": "extension.copyFileName",
-          "when": "resourceExtname",
+          "when": "resource && !explorerResourceIsFolder",
           "group": "5_folder-structure-pro"
         }
       ],
