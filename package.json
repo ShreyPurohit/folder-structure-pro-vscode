@@ -4,7 +4,7 @@
   "description": "Easily copy & create folder structures, file names and jump-ready line paths with a single click.",
   "packageManager": "pnpm@12.21.0",
   "publisher": "iamshreydxv",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -13,7 +13,9 @@
     "Other"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "extensionKind": [
     "ui",
     "workspace"
@@ -59,6 +61,11 @@
         "command": "extension.copyLinePath",
         "title": "Copy Line Path",
         "category": "Editor"
+      },
+      {
+        "command": "extension.showWhatsNew",
+        "title": "What's New",
+        "category": "Folder Structure Pro"
       }
     ],
     "submenus": [

@@ -208,6 +208,10 @@ export class NodeFileSystemAdapter
         await this.withNormalizedError(() => fs.unlink(target));
     }
 
+    async discardBackup(backup: FolderPath): Promise<void> {
+        await this.removeFile(backup);
+    }
+
     async removeEmptyDirectory(folderPath: FolderPath): Promise<void> {
         // rmdir fails on a directory that is not empty, so nothing inside can be lost.
         await this.withNormalizedError(() => fs.rmdir(this.decodePath(folderPath)));

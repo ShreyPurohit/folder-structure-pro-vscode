@@ -1,21 +1,19 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import {
+    executeStructureCreation,
     formatJson,
     formatPlainText,
-    isDirectoryNode,
-    isFileLeaf,
-    normalizeFileLeafExtensions,
-    parseJsonWithComments,
-    parsePlainTextToStructure,
-    stripInlineComments,
+    parseStructureInput,
+    planStructureCreation,
     traverseFolderStructure,
-    TreeParser,
-    validateJsonStructure,
+    type CreationAbortSignal,
+    type CreationConflictResolution,
+    type StructureCreationPlan,
+    type StructureCreationResult,
+    type StructureInputResult,
 } from '@folder-structure-pro/core';
-import { ERROR_MESSAGES } from '../constants';
 import { FolderStructure, OutputFormat } from '../types';
-import { FileSystemService } from './fileSystem';
 import { GitignoreService } from './gitignore';
 import { VSCodeFileSystemAdapter } from '../adapters/vscodeFileSystem';
 
@@ -37,101 +35,38 @@ export class StructureService {
         return formatPlainText(structure);
     }
 
-    static stripInlineComments(text: string): string {
-        return stripInlineComments(text);
+    /**
+     * Reads a structure the user typed or pasted, with the shared core rules. `format`
+     * is the one chosen in the webview.
+     */
+    static readStructure(text: string, format: OutputFormat): StructureInputResult {
+        return parseStructureInput(text, {
+            format: format === 'JSON Format' ? 'json' : 'text',
+            parserOptions: {
+                getFileType: (name) => this.fileTypeFor(name),
+                getBaseName: (name) => this.baseNameFor(name),
+            },
+        });
     }
 
-    static parseJsonStructure(text: string): unknown {
-        return parseJsonWithComments(text);
-    }
-
-    static async createStructure(
-        baseUri: vscode.Uri,
-        content: string,
-        format: OutputFormat,
-    ): Promise<void> {
-        if (!content.trim()) {
-            throw new Error(ERROR_MESSAGES.EMPTY_STRUCTURE);
-        }
-
-        if (format === 'Plain Text Format') {
-            await this.createFromPlainText(baseUri, content);
-        } else {
-            try {
-                const structure = this.parseJsonStructure(content);
-                if (!this.validateJsonStructure(structure)) {
-                    throw new Error(
-                        'Invalid JSON structure: use nested objects for folders and string file types for files',
-                    );
-                }
-                await this.createFromJSON(baseUri, structure);
-            } catch (error) {
-                throw new Error('Invalid JSON format');
-            }
-        }
-    }
-
-    private static async createFromPlainText(baseUri: vscode.Uri, content: string): Promise<void> {
-        const rawLines = content.split('\n');
-        // Ignore the first line (header/title) regardless of its text
-        const lines = rawLines
-            .slice(1)
-            .filter((line) => line.trim())
-            .filter((line) => !line.includes('Directory structure:'));
-
-        const pathStack: string[] = [];
-        let skipped = 0;
-
-        for (const line of lines) {
-            const node = TreeParser.parseLine(line);
-            if (!node || !node.name) {
-                skipped++;
-                continue;
-            }
-
-            while (pathStack.length > node.level) {
-                pathStack.pop();
-            }
-
-            const fullPath = vscode.Uri.joinPath(baseUri, ...pathStack, node.name);
-
-            if (node.isDirectory) {
-                await FileSystemService.mkdirIfAbsent(fullPath);
-                pathStack.push(node.name);
-            } else {
-                await FileSystemService.writeFileIfAbsent(fullPath, '');
-            }
-        }
-
-        if (skipped > 0) {
-            // Inform user but do not fail the operation
-            vscode.window.showWarningMessage(
-                `Some lines (${skipped}) were skipped due to unrecognized format.`,
-            );
-        }
-    }
-
-    private static async createFromJSON(
-        baseUri: vscode.Uri,
+    /** Checks the structure against the destination: safe names, and what already exists. */
+    static async planCreation(
+        destination: vscode.Uri,
         structure: FolderStructure,
-    ): Promise<void> {
-        for (const [key, value] of Object.entries(structure)) {
-            if (isDirectoryNode(value)) {
-                const dirPath = vscode.Uri.joinPath(baseUri, key);
-                await FileSystemService.mkdirIfAbsent(dirPath);
-                await this.createFromJSON(dirPath, value);
-                continue;
-            }
-            if (!isFileLeaf(value)) {
-                continue;
-            }
-            const uniqueExtensions = Array.from(new Set(normalizeFileLeafExtensions(value)));
-            for (const extension of uniqueExtensions) {
-                const fileName = extension === 'file' ? key : `${key}.${extension}`;
-                const fullPath = vscode.Uri.joinPath(baseUri, fileName);
-                await FileSystemService.writeFileIfAbsent(fullPath, '');
-            }
-        }
+    ): Promise<StructureCreationPlan> {
+        const fileSystem = new VSCodeFileSystemAdapter();
+        return planStructureCreation(fileSystem, fileSystem.toFolderPath(destination), structure);
+    }
+
+    /** Creates the planned structure, all or nothing. */
+    static async executeCreation(
+        plan: StructureCreationPlan,
+        conflictResolution: CreationConflictResolution,
+        signal?: CreationAbortSignal,
+    ): Promise<StructureCreationResult> {
+        return executeStructureCreation(new VSCodeFileSystemAdapter(), plan, conflictResolution, {
+            signal,
+        });
     }
 
     static fileTypeFor(name: string): string {
@@ -145,20 +80,6 @@ export class StructureService {
     static baseNameFor(name: string): string {
         const extension = path.extname(name);
         return extension ? name.slice(0, -extension.length) : name;
-    }
-
-    static parsePlainTextToStructure(content: string): {
-        structure: FolderStructure;
-        invalidLines: number[];
-    } {
-        return parsePlainTextToStructure(content, {
-            getFileType: (name) => this.fileTypeFor(name),
-            getBaseName: (name) => this.baseNameFor(name),
-        });
-    }
-
-    static validateJsonStructure(obj: unknown): obj is FolderStructure {
-        return validateJsonStructure(obj);
     }
 }
 

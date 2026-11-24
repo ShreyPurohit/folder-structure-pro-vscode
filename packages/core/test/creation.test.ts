@@ -133,6 +133,11 @@ class MemoryFileSystem
         }
         this.entries.delete(path);
     }
+    readonly discarded: string[] = [];
+    async discardBackup(backup: FolderPath): Promise<void> {
+        this.discarded.push(backup);
+        await this.removeFile(backup);
+    }
     async removeEmptyDirectory(path: FolderPath): Promise<void> {
         this.refuseUndo(path);
         const hasChildren = [...this.entries.keys()].some((key) => key.startsWith(`${path}/`));
@@ -446,6 +451,7 @@ describe('structure creation execution', () => {
         const plan = await planStructureCreation(fileSystem, ROOT, { replace: 'txt' });
         const result = await executeStructureCreation(fileSystem, plan, 'replace');
         expect(result).toMatchObject({ filesReplaced: 1, leftoverBackups: [] });
+        expect(fileSystem.discarded).toEqual([`${ROOT}/replace.txt.backup1`]);
         await expect(fileSystem.readText(`${ROOT}/replace.txt` as FolderPath)).resolves.toBe('');
         expect([...fileSystem.entries.keys()].some((key) => key.includes('backup'))).toBe(false);
     });
