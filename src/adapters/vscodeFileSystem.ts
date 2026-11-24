@@ -1,7 +1,10 @@
+import { randomBytes } from 'crypto';
 import * as vscode from 'vscode';
 import {
     FolderFileSystemError,
+    type CreationRollback,
     type DirectoryEntry,
+    type ExclusiveFileCreation,
     type EntryMetadata,
     type FolderFileSystemErrorCode,
     type FolderPath,
@@ -35,7 +38,9 @@ const FILE_SYSTEM_ERROR_CODES: Record<string, FolderFileSystemErrorCode> = {
  * provider-dependent; workspace.fs.stat is not equivalent to native lstat. A
  * provider may also reject URI query or fragment components for filesystem calls.
  */
-export class VSCodeFileSystemAdapter implements FolderStructureFileSystem {
+export class VSCodeFileSystemAdapter
+    implements FolderStructureFileSystem, ExclusiveFileCreation, CreationRollback
+{
     /**
      * Converts a VS Code URI at the extension boundary into the adapter's opaque path.
      */
@@ -108,6 +113,161 @@ export class VSCodeFileSystemAdapter implements FolderStructureFileSystem {
         );
     }
 
+    /**
+     * workspace.fs.writeFile cannot refuse to overwrite, so the empty file is written under a
+     * random name next to the target and then renamed without overwriting.
+     */
+
+    async createFileExclusive(path: FolderPath, content: string): Promise<void> {
+        const target = this.deserializePath(path);
+        const temporary = this.siblingWithRandomName(target, 'new');
+
+        try {
+            await this.withUri(path, () =>
+                vscode.workspace.fs.writeFile(temporary, new TextEncoder().encode(content)),
+            );
+
+            await this.withUri(path, () =>
+                vscode.workspace.fs.rename(temporary, target, { overwrite: false }),
+            );
+        } catch (error) {
+            let cleanupError: FolderFileSystemError | undefined;
+
+            try {
+                await this.withUri(path, () =>
+                    vscode.workspace.fs.delete(temporary, {
+                        recursive: false,
+                        useTrash: false,
+                    }),
+                );
+            } catch (caught) {
+                const normalized = this.normalizeError(caught);
+
+                if (normalized.code !== 'NOT_FOUND') {
+                    cleanupError = normalized;
+                }
+            }
+
+            if (cleanupError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `File creation failed, and its temporary file could not be cleaned up: "${temporary.toString()}".`,
+                    {
+                        cause: new AggregateError([error, cleanupError]),
+                    },
+                );
+            }
+
+            throw error;
+        }
+    }
+
+    /** Copies the original aside, then empties it in place so its permissions are kept. */
+    async replaceWithEmptyFile(path: FolderPath): Promise<FolderPath> {
+        const target = this.deserializePath(path);
+
+        await this.assertRegularFile(path, 'Only a regular file can be replaced.');
+
+        const backup = this.siblingWithRandomName(target, 'backup');
+
+        // Create a backup before modifying the original file.
+        try {
+            await this.withUri(path, () =>
+                vscode.workspace.fs.copy(target, backup, { overwrite: false }),
+            );
+        } catch (copyError) {
+            let cleanupError: FolderFileSystemError | undefined;
+
+            // A provider might create a partial backup before reporting failure.
+            try {
+                await this.withUri(path, () =>
+                    vscode.workspace.fs.delete(backup, {
+                        recursive: false,
+                        useTrash: false,
+                    }),
+                );
+            } catch (caught) {
+                const normalized = this.normalizeError(caught);
+
+                if (normalized.code !== 'NOT_FOUND') {
+                    cleanupError = normalized;
+                }
+            }
+
+            if (cleanupError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `Backing up the original file failed, and the partial backup could not be cleaned up: "${backup.toString()}".`,
+                    {
+                        cause: new AggregateError([copyError, cleanupError]),
+                    },
+                );
+            }
+
+            throw copyError;
+        }
+
+        // Empty the original only after the backup has been created.
+        try {
+            await this.writeText(path, '');
+        } catch (writeError) {
+            try {
+                // The failed write may have modified the original.
+                await this.withUri(path, (uri) =>
+                    vscode.workspace.fs.rename(backup, uri, { overwrite: true }),
+                );
+            } catch (restoreError) {
+                throw new FolderFileSystemError(
+                    'IO_ERROR',
+                    `Replacing the file failed, and automatic restoration also failed. The original backup has been preserved at: "${backup.toString()}". Restore it manually if needed.`,
+                    {
+                        cause: new AggregateError([writeError, restoreError]),
+                    },
+                );
+            }
+
+            throw writeError;
+        }
+
+        return this.serializeUri(backup);
+    }
+
+    async restoreFile(backup: FolderPath, path: FolderPath): Promise<void> {
+        const source = this.deserializePath(backup);
+        await this.withUri(path, (target) =>
+            vscode.workspace.fs.rename(source, target, { overwrite: true }),
+        );
+    }
+
+    async removeFile(path: FolderPath): Promise<void> {
+        await this.assertRegularFile(path, 'Only a regular file can be removed.');
+        await this.withUri(path, (uri) =>
+            vscode.workspace.fs.delete(uri, { recursive: false, useTrash: false }),
+        );
+    }
+
+    async removeEmptyDirectory(path: FolderPath): Promise<void> {
+        const metadata = await this.lstat(path);
+        if (metadata.kind !== 'directory') {
+            throw new FolderFileSystemError('NOT_DIRECTORY', 'Only a directory can be removed.');
+        }
+        // Checked explicitly: whether a non-recursive delete refuses a non-empty folder
+        // depends on the file system provider.
+        if ((await this.readDirectory(path)).length > 0) {
+            throw new FolderFileSystemError('IO_ERROR', 'The directory is not empty.');
+        }
+        await this.withUri(path, (uri) =>
+            vscode.workspace.fs.delete(uri, { recursive: false, useTrash: false }),
+        );
+    }
+
+    /** Moves the original of a replaced file to the trash, so it can still be recovered. */
+    async discardBackup(backup: FolderPath): Promise<void> {
+        await this.withUri(backup, (uri) =>
+            vscode.workspace.fs.delete(uri, { recursive: false, useTrash: true }),
+        );
+    }
+
     joinChild(parent: FolderPath, name: string): FolderPath {
         const parentUri = this.deserializePath(parent);
         const isWindowsFileUri = parentUri.scheme === 'file' && process.platform === 'win32';
@@ -170,6 +330,21 @@ export class VSCodeFileSystemAdapter implements FolderStructureFileSystem {
         const uri = this.deserializePath(path);
         const segments = this.pathSegments(uri.path);
         return segments[segments.length - 1] ?? uri.path;
+    }
+
+    private async assertRegularFile(path: FolderPath, message: string): Promise<void> {
+        const metadata = await this.lstat(path);
+        if (metadata.kind !== 'file') {
+            throw new FolderFileSystemError('INVALID_PATH', message);
+        }
+    }
+
+    /** A hidden name next to `uri` that nothing else uses. */
+    private siblingWithRandomName(uri: vscode.Uri, purpose: string): vscode.Uri {
+        const segments = this.pathSegments(uri.path);
+        const name = segments.pop() ?? 'file';
+        const hidden = `.${name}.${randomBytes(6).toString('hex')}.${purpose}.folder-structure-pro`;
+        return uri.with({ path: `/${[...segments, hidden].join('/')}` });
     }
 
     private async withUri<T>(

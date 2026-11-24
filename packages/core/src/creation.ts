@@ -459,7 +459,7 @@ export async function executeStructureCreation(
     // Done: the copies of replaced files are no longer needed.
     for (const { entry, backup } of journal.replaced) {
         try {
-            await fileSystem.removeFile(backup);
+            await fileSystem.discardBackup(backup);
         } catch {
             result.leftoverBackups.push(
                 fileSystem.relative(plan.destination, backup) || entry.relativePath,

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { StructureInputResult } from '@folder-structure-pro/core';
 import * as vscode from 'vscode';
 import { StructureService } from '../../src/services/structure';
-import { FileSystemService } from '../../src/services/fileSystem';
+import { installMemoryWorkspaceFs } from '../helpers/memoryWorkspaceFs';
 import { GitignoreService } from '../../src/services/gitignore';
 import {
     mockFsReadDirectory,
@@ -15,6 +16,22 @@ const PLAIN_TEXT = `Directory structure:
 ├── app/
 │   └── index.ts
 └── package.json`;
+
+function structureOf(result: StructureInputResult): FolderStructure {
+    if (!result.ok) {
+        throw new Error(`Expected a valid structure, got: ${result.message}`);
+    }
+    return result.structure;
+}
+
+/** Reads, plans and creates, exactly as the Create command does. */
+async function createAt(path: string, text: string, format: 'Plain Text Format' | 'JSON Format') {
+    const plan = await StructureService.planCreation(
+        vscode.Uri.file(path),
+        structureOf(StructureService.readStructure(text, format)),
+    );
+    return StructureService.executeCreation(plan, 'skip');
+}
 
 function getDirectory(structure: FolderStructure, name: string): FolderStructure {
     const value = structure[name];
@@ -56,16 +73,88 @@ describe('StructureService', () => {
         expect(StructureService.baseNameFor('README')).toBe('README');
     });
 
-    it('uses the extension filename semantics when converting parsed names', () => {
+    it('uses the extension filename semantics when reading a structure', () => {
         const name = 'folder.name\\file';
-        const { structure, invalidLines } = StructureService.parsePlainTextToStructure(
+        const result = StructureService.readStructure(
             `Directory structure:\n└── ${name}`,
+            'Plain Text Format',
         );
-
-        expect(invalidLines).toEqual([]);
-        expect(structure).toEqual({
+        expect(structureOf(result)).toEqual({
             [StructureService.baseNameFor(name)]: StructureService.fileTypeFor(name),
         });
+    });
+
+    it('creates structures from plain text and JSON with the shared core', async () => {
+        const fs = installMemoryWorkspaceFs({ '/tmp/target': null });
+
+        await createAt('/tmp/target', PLAIN_TEXT, 'Plain Text Format');
+        expect(fs.read('/tmp/target/app/index.ts')).toBe('');
+        expect(fs.read('/tmp/target/package.json')).toBe('');
+
+        await createAt(
+            '/tmp/target',
+            JSON.stringify({ lib: { package: ['json', 'lock'], Dockerfile: null } }),
+            'JSON Format',
+        );
+        expect(fs.read('/tmp/target/lib/package.json')).toBe('');
+        expect(fs.read('/tmp/target/lib/package.lock')).toBe('');
+        expect(fs.read('/tmp/target/lib/Dockerfile')).toBe('');
+    });
+
+    it('keeps the root folder of a tree pasted without the heading', async () => {
+        const fs = installMemoryWorkspaceFs({ '/tmp/target': null });
+        await createAt('/tmp/target', '└── app/\n    └── index.ts', 'Plain Text Format');
+        expect(fs.read('/tmp/target/app/index.ts')).toBe('');
+    });
+
+    it('reports empty, unreadable and invalid input', () => {
+        expect(StructureService.readStructure('   ', 'Plain Text Format')).toMatchObject({
+            ok: false,
+            message: 'Empty input or no valid lines.',
+        });
+        expect(StructureService.readStructure('{ invalid', 'JSON Format')).toMatchObject({
+            ok: false,
+            message: expect.stringMatching(/^Invalid JSON: /),
+        });
+        expect(
+            StructureService.readStructure(
+                'Directory structure:\n└── app/\n            └── index.ts',
+                'Plain Text Format',
+            ),
+        ).toMatchObject({
+            ok: false,
+            invalidLines: [{ line: 3, text: '            └── index.ts' }],
+        });
+    });
+
+    it('refuses names that would escape the destination, before creating anything', async () => {
+        const fs = installMemoryWorkspaceFs({ '/tmp/target': null, '/tmp/outside': null });
+        const before = fs.snapshot();
+        const result = StructureService.readStructure(
+            JSON.stringify({ '../outside': { evil: 'ts' } }),
+            'JSON Format',
+        );
+        await expect(
+            StructureService.planCreation(vscode.Uri.file('/tmp/target'), structureOf(result)),
+        ).rejects.toThrow('not a safe, portable filesystem name');
+        expect(fs.snapshot()).toEqual(before);
+    });
+
+    it.each([
+        [
+            '# comments',
+            '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}',
+            '/tmp/target/app/index.ts',
+        ],
+        [
+            '// comments',
+            '{\n  "src": { // source folder\n    "main": "ts" // entry\n  }\n}',
+            '/tmp/target/src/main.ts',
+        ],
+    ])('creates JSON with %s', async (_label, json, created) => {
+        const fs = installMemoryWorkspaceFs({ '/tmp/target': null });
+        await createAt('/tmp/target', json, 'JSON Format');
+        expect(fs.read(created)).toBe('');
     });
 
     it('builds structure from remote URIs', async () => {
@@ -96,60 +185,6 @@ describe('StructureService', () => {
             package: ['json', 'lock'],
         });
         expect(srcUri.path).toContain('/src');
-    });
-
-    it('creates structures from plain text and JSON', async () => {
-        const baseUri = vscode.Uri.file('/tmp/target');
-        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
-        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
-
-        await StructureService.createStructure(baseUri, PLAIN_TEXT, 'Plain Text Format');
-        expect(mkdir).toHaveBeenCalled();
-        expect(write).toHaveBeenCalled();
-
-        mkdir.mockClear();
-        write.mockClear();
-
-        await StructureService.createStructure(
-            baseUri,
-            JSON.stringify({
-                app: {
-                    package: ['json', 'lock'],
-                    Dockerfile: null,
-                },
-            }),
-            'JSON Format',
-        );
-
-        expect(mkdir).toHaveBeenCalled();
-        expect(write).toHaveBeenCalled();
-    });
-
-    it('throws for empty or invalid JSON input', async () => {
-        const baseUri = vscode.Uri.file('/tmp/target');
-        await expect(
-            StructureService.createStructure(baseUri, '   ', 'Plain Text Format'),
-        ).rejects.toThrow('Plain Text structure cannot be empty.');
-        await expect(
-            StructureService.createStructure(baseUri, '{ invalid', 'JSON Format'),
-        ).rejects.toThrow('Invalid JSON format');
-    });
-
-    it('warns when plain text lines are skipped during creation', async () => {
-        const baseUri = vscode.Uri.file('/tmp/target');
-        vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
-        vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
-
-        await StructureService.createStructure(
-            baseUri,
-            `Directory structure:
-├── app/
-invalid-line
-│   └── index.ts`,
-            'Plain Text Format',
-        );
-
-        expect(vscode.window.showWarningMessage).toHaveBeenCalled();
     });
 
     it('preserves both directory and file when sharing the same basename (dir before file)', async () => {
@@ -216,45 +251,16 @@ invalid-line
             ],
             '/home/user/project/app': [['index.ts', vscode.FileType.File]],
         });
-        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
-        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
-
         const structure = await StructureService.getStructure(root);
         const project = getDirectory(structure, 'project');
         expect(project.app).toEqual({ index: 'ts' });
         expect(project['app.json']).toBeNull();
         expect(project['app.ts']).toBeNull();
-
         const json = StructureService.formatStructure(structure, 'JSON Format');
-        await StructureService.createStructure(target, json, 'JSON Format');
-
-        expect(mkdir).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app'));
-        expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.json'), '');
-        expect(write).toHaveBeenCalledWith(vscode.Uri.file('/tmp/target/project/app.ts'), '');
-    });
-
-    it('createStructure handles JSON with # inline comments', async () => {
-        const baseUri = vscode.Uri.file('/tmp/target');
-        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
-        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
-
-        const commentedJson =
-            '{\n  "app": { // root folder\n    "index": "ts" # main entry\n  }\n}';
-        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
-
-        expect(mkdir).toHaveBeenCalled();
-        expect(write).toHaveBeenCalled();
-    });
-
-    it('createStructure handles JSON with // inline comments', async () => {
-        const baseUri = vscode.Uri.file('/tmp/target');
-        const mkdir = vi.spyOn(FileSystemService, 'mkdirIfAbsent').mockResolvedValue();
-        const write = vi.spyOn(FileSystemService, 'writeFileIfAbsent').mockResolvedValue();
-
-        const commentedJson = '{\n  "src": { // source folder\n    "main": "ts" // entry\n  }\n}';
-        await StructureService.createStructure(baseUri, commentedJson, 'JSON Format');
-
-        expect(mkdir).toHaveBeenCalled();
-        expect(write).toHaveBeenCalled();
+        const fs = installMemoryWorkspaceFs({ [target.path]: null });
+        await createAt(target.path, json, 'JSON Format');
+        expect(fs.read('/tmp/target/project/app/index.ts')).toBe('');
+        expect(fs.read('/tmp/target/project/app.json')).toBe('');
+        expect(fs.read('/tmp/target/project/app.ts')).toBe('');
     });
 });
